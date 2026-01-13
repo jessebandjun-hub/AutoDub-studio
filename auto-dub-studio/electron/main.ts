@@ -107,7 +107,18 @@ app.whenReady().then(() => {
   })
 
   // 3. 监听：导出成品视频
-  ipcMain.handle('video:export', async (_event, { sourceVideoPath, subtitleData }) => {
+  ipcMain.handle('video:export', async (_event, { sourceVideoPath, subtitleData, withDubbing, ttsOptions }) => {
+    // 默认 TTS 选项
+    const options = {
+      voice: 'zh-CN-XiaoxiaoNeural',
+      lang: 'zh-CN',
+      outputFormat: 'audio-24khz-48kbitrate-mono-mp3',
+      rate: '+0%',
+      pitch: '+0Hz',
+      volume: '+0%',
+      ...ttsOptions // 覆盖默认值
+    }
+
     // 3.1 弹出保存对话框，让用户选择保存位置
     // 生成带时间戳的文件名：dubbed_output_20231027_143005.mp4
     const now = new Date()
@@ -161,12 +172,48 @@ app.whenReady().then(() => {
       // BorderStyle=1 (普通描边), Outline=1 (描边宽度), Shadow=0 (无阴影)
       const subtitleStyle = "Fontname=Microsoft YaHei,FontSize=24,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=1,Shadow=0,MarginV=20"
 
+      // 如果需要配音，先生成 TTS 音频文件
+      let ttsAudioPath = ''
+      if (withDubbing) {
+        const fullText = (subtitleData || []).map((s: any) => s.text).join('，')
+        const tts = new EdgeTTS({
+            voice: options.voice,
+            lang: options.lang,
+            outputFormat: options.outputFormat,
+            rate: options.rate,
+            pitch: options.pitch,
+            volume: options.volume
+        })
+        ttsAudioPath = path.join(app.getPath('temp'), `tts_temp_${Date.now()}.mp3`)
+        await tts.ttsPromise(fullText, ttsAudioPath)
+      }
+
       await new Promise<void>((resolve, reject) => {
-        ffmpeg()
-          .input(sourceVideoPath)
+        const command = ffmpeg().input(sourceVideoPath)
+        
+        if (withDubbing && ttsAudioPath) {
+            command.input(ttsAudioPath)
+            // 映射原视频的视频流 (0:v) 和 TTS 的音频流 (1:a)
+            // -c:v libx264 重新编码视频以烧录字幕
+            // -c:a aac 编码音频
+            // -shortest 以最短的流为准（防止音频过长），但通常我们希望视频完整。
+            // 这里的策略是：视频多长就多长，音频不够就没声音，音频多了就截断。
+            // 使用 -map 0:v -map 1:a 即可。
+            command.outputOptions([
+                '-map 0:v', 
+                '-map 1:a', 
+                '-c:v libx264', 
+                '-c:a aac',
+                '-shortest' // 确保输出长度不超过视频或音频的最短者
+            ])
+        } else {
+            // 原逻辑：复制音频
+            command.outputOptions(['-c:a', 'copy'])
+        }
+
+        command
           // 添加 force_style 参数来美化字幕
           .videoFilters(`subtitles='${normalizedSrt}':force_style='${subtitleStyle}'`)
-          .outputOptions(['-c:a', 'copy'])
           .save(savePath)
           .on('start', (commandLine) => console.log('Spawned Ffmpeg with command: ' + commandLine))
           .on('end', () => resolve())
@@ -175,6 +222,7 @@ app.whenReady().then(() => {
       shell.showItemInFolder(savePath)
       return { status: 'success', outputPath: savePath }
     } catch (e: any) {
+      console.error(e)
       return { status: 'error', message: e?.message || '导出失败' }
     }
   })
@@ -222,12 +270,24 @@ app.whenReady().then(() => {
   })
 
   // 5. 监听：TTS 字幕转音频
-  ipcMain.handle('tts:generate', async (_event, text) => {
+  ipcMain.handle('tts:generate', async (_event, { text, options: ttsOptions }) => {
     try {
-      const tts = new EdgeTTS({
+      const options = {
         voice: 'zh-CN-XiaoxiaoNeural',
         lang: 'zh-CN',
-        outputFormat: 'audio-24khz-48kbitrate-mono-mp3'
+        outputFormat: 'audio-24khz-48kbitrate-mono-mp3',
+        rate: '+0%',
+        pitch: '+0Hz',
+        volume: '+0%',
+        ...ttsOptions
+      }
+      const tts = new EdgeTTS({
+        voice: options.voice,
+        lang: options.lang,
+        outputFormat: options.outputFormat,
+        rate: options.rate,
+        pitch: options.pitch,
+        volume: options.volume
       })
       
       const now = new Date()

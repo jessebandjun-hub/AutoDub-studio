@@ -14,6 +14,31 @@ function App() {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const [editing, setEditing] = useState(false)
 
+  // TTS 配置状态
+  const [ttsConfig, setTtsConfig] = useState({
+    voice: 'zh-CN-XiaoxiaoNeural',
+    rate: '+0%'
+  })
+
+  // 常用语音列表
+  const voiceOptions = [
+    { value: 'zh-CN-XiaoxiaoNeural', label: '晓晓 (女声 - 温暖 - 默认)' },
+    { value: 'zh-CN-YunxiNeural', label: '云希 (男声 - 稳重)' },
+    { value: 'zh-CN-YunjianNeural', label: '云健 (男声 - 体育)' },
+    { value: 'zh-CN-XiaoyiNeural', label: '晓伊 (女声 - 情感)' },
+    { value: 'zh-CN-YunyangNeural', label: '云扬 (男声 - 新闻)' },
+    { value: 'zh-CN-XiaoshuangNeural', label: '晓双 (女声 - 儿童)' },
+    { value: 'zh-CN-YunfengNeural', label: '云枫 (男声)' },
+    { value: 'zh-HK-HiuGaaiNeural', label: 'HiuGaai (粤语女声)' },
+    { value: 'zh-TW-HsiaoChenNeural', label: 'HsiaoChen (台湾女声)' },
+  ]
+
+  const rateOptions = [
+    { value: '-25%', label: '0.75x (慢)' },
+    { value: '+0%', label: '1.0x (正常)' },
+    { value: '+25%', label: '1.25x (快)' },
+  ]
+
   const addLog = (msg: string) => setStatusLog(prev => [...prev, `> ${msg}`])
 
   useEffect(() => {
@@ -58,16 +83,17 @@ function App() {
   }
 
   // 3. 导出视频
-  const handleExport = async () => {
+  const handleExport = async (withDubbing = false) => {
     if (!videoPath || segments.length === 0) return
     setIsExporting(true)
-    addLog('开始导出... 请先选择保存位置。')
+    const logPrefix = withDubbing ? '配音视频' : '字幕视频'
+    addLog(`开始导出${logPrefix}... 请先选择保存位置。`)
 
     try {
-      // 调用主进程进行导出，传入原视频路径和当前的字幕数据
-      const result = await window.electronAPI.exportVideo(videoPath, segments)
+      // 调用主进程进行导出，传入原视频路径和当前的字幕数据，以及 TTS 配置
+      const result = await window.electronAPI.exportVideo(videoPath, segments, withDubbing, ttsConfig)
       if (result.status === 'success') {
-        addLog(`导出成功！保存路径：${result.outputPath}`)
+        addLog(`${logPrefix}导出成功！保存路径：${result.outputPath}`)
       } else if (result.status === 'copied') {
         addLog(`未找到 FFmpeg，已复制原视频到：${result.outputPath}`)
       } else if (result.status === 'canceled') {
@@ -107,7 +133,7 @@ function App() {
     const fullText = segments.map(seg => seg.text).join('，') // 使用逗号连接，停顿更自然
     addLog('正在调用 Edge TTS 生成音频...')
     try {
-      const result = await window.electronAPI.generateAudio(fullText)
+      const result = await window.electronAPI.generateAudio(fullText, ttsConfig)
       if (result.status === 'success') {
         addLog(`TTS 音频生成成功！路径：${result.outputPath}`)
       } else if (result.status === 'canceled') {
@@ -215,17 +241,52 @@ function App() {
           </div>
 
           {segments.length > 0 && (
-            <div className="card action-card">
-              <button className="export-btn" onClick={handleExport} disabled={isExporting}>
-                  {isExporting ? '导出中...' : '导出视频（烧录字幕）'}
-              </button>
-              <button className="export-btn" onClick={handleExportSrt} disabled={isExporting} style={{ marginLeft: 10 }}>
-                  导出 SRT 字幕文件
-              </button>
-              <button className="export-btn" onClick={handleTtsGenerate} disabled={isExporting} style={{ marginLeft: 10, backgroundColor: '#0078d4' }}>
-                  字幕转音频 (Edge TTS)
-              </button>
-            </div>
+            <>
+              <div className="card" style={{ marginBottom: 15 }}>
+                <h3>配音设置：</h3>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <label>
+                    角色：
+                    <select
+                      value={ttsConfig.voice}
+                      onChange={e => setTtsConfig(prev => ({ ...prev, voice: e.target.value }))}
+                      style={{ padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
+                    >
+                      {voiceOptions.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    语速：
+                    <select
+                      value={ttsConfig.rate}
+                      onChange={e => setTtsConfig(prev => ({ ...prev, rate: e.target.value }))}
+                      style={{ padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
+                    >
+                      {rateOptions.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              </div>
+
+              <div className="card action-card">
+                <button className="export-btn" onClick={() => handleExport(false)} disabled={isExporting}>
+                    {isExporting ? '导出中...' : '导出视频（烧录字幕）'}
+                </button>
+                <button className="export-btn" onClick={() => handleExport(true)} disabled={isExporting} style={{ marginLeft: 10, backgroundColor: '#8a2be2' }}>
+                    导出配音视频 (TTS+字幕)
+                </button>
+                <button className="export-btn" onClick={handleExportSrt} disabled={isExporting} style={{ marginLeft: 10 }}>
+                    导出 SRT 字幕文件
+                </button>
+                <button className="export-btn" onClick={handleTtsGenerate} disabled={isExporting} style={{ marginLeft: 10, backgroundColor: '#0078d4' }}>
+                    字幕转音频 (Edge TTS)
+                </button>
+              </div>
+            </>
           )}
         </div>
       )}

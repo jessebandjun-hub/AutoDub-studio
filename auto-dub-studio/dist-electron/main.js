@@ -5258,7 +5258,17 @@ electron.app.whenReady().then(() => {
       ]
     };
   });
-  electron.ipcMain.handle("video:export", async (_event, { sourceVideoPath, subtitleData }) => {
+  electron.ipcMain.handle("video:export", async (_event, { sourceVideoPath, subtitleData, withDubbing, ttsOptions }) => {
+    const options = {
+      voice: "zh-CN-XiaoxiaoNeural",
+      lang: "zh-CN",
+      outputFormat: "audio-24khz-48kbitrate-mono-mp3",
+      rate: "+0%",
+      pitch: "+0Hz",
+      volume: "+0%",
+      ...ttsOptions
+      // 覆盖默认值
+    };
     const now = /* @__PURE__ */ new Date();
     const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}_${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}`;
     const defaultFilename = `dubbed_output_${timestamp}.mp4`;
@@ -5299,12 +5309,41 @@ ${text}
       await fs.promises.writeFile(tmpSrt, srt, "utf-8");
       const normalizedSrt = tmpSrt.replace(/\\/g, "/").replace(/:/g, "\\:");
       const subtitleStyle = "Fontname=Microsoft YaHei,FontSize=24,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=1,Shadow=0,MarginV=20";
+      let ttsAudioPath = "";
+      if (withDubbing) {
+        const fullText = (subtitleData || []).map((s) => s.text).join("，");
+        const tts = new EdgeTTS_1({
+          voice: options.voice,
+          lang: options.lang,
+          outputFormat: options.outputFormat,
+          rate: options.rate,
+          pitch: options.pitch,
+          volume: options.volume
+        });
+        ttsAudioPath = path.join(electron.app.getPath("temp"), `tts_temp_${Date.now()}.mp3`);
+        await tts.ttsPromise(fullText, ttsAudioPath);
+      }
       await new Promise((resolve, reject) => {
-        ffmpeg().input(sourceVideoPath).videoFilters(`subtitles='${normalizedSrt}':force_style='${subtitleStyle}'`).outputOptions(["-c:a", "copy"]).save(savePath).on("start", (commandLine) => console.log("Spawned Ffmpeg with command: " + commandLine)).on("end", () => resolve()).on("error", (err) => reject(err));
+        const command = ffmpeg().input(sourceVideoPath);
+        if (withDubbing && ttsAudioPath) {
+          command.input(ttsAudioPath);
+          command.outputOptions([
+            "-map 0:v",
+            "-map 1:a",
+            "-c:v libx264",
+            "-c:a aac",
+            "-shortest"
+            // 确保输出长度不超过视频或音频的最短者
+          ]);
+        } else {
+          command.outputOptions(["-c:a", "copy"]);
+        }
+        command.videoFilters(`subtitles='${normalizedSrt}':force_style='${subtitleStyle}'`).save(savePath).on("start", (commandLine) => console.log("Spawned Ffmpeg with command: " + commandLine)).on("end", () => resolve()).on("error", (err) => reject(err));
       });
       electron.shell.showItemInFolder(savePath);
       return { status: "success", outputPath: savePath };
     } catch (e) {
+      console.error(e);
       return { status: "error", message: (e == null ? void 0 : e.message) || "导出失败" };
     }
   });
@@ -5345,12 +5384,24 @@ ${text}
       return { status: "error", message: (e == null ? void 0 : e.message) || "导出 SRT 失败" };
     }
   });
-  electron.ipcMain.handle("tts:generate", async (_event, text) => {
+  electron.ipcMain.handle("tts:generate", async (_event, { text, options: ttsOptions }) => {
     try {
-      const tts = new EdgeTTS_1({
+      const options = {
         voice: "zh-CN-XiaoxiaoNeural",
         lang: "zh-CN",
-        outputFormat: "audio-24khz-48kbitrate-mono-mp3"
+        outputFormat: "audio-24khz-48kbitrate-mono-mp3",
+        rate: "+0%",
+        pitch: "+0Hz",
+        volume: "+0%",
+        ...ttsOptions
+      };
+      const tts = new EdgeTTS_1({
+        voice: options.voice,
+        lang: options.lang,
+        outputFormat: options.outputFormat,
+        rate: options.rate,
+        pitch: options.pitch,
+        volume: options.volume
       });
       const now = /* @__PURE__ */ new Date();
       const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}_${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}`;
