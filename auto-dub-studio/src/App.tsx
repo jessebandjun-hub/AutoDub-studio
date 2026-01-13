@@ -152,20 +152,21 @@ function App() {
   return (
     <div className="container">
 
-      <div className="card">
-        {videoPath ? (
-          <>
-            <video className="video-player" src={videoUrl} controls ref={videoRef} />
-            <p className="path-display">当前：{videoPath}</p>
-            <button onClick={handleSelectFile} disabled={isProcessing || isExporting}>更换视频</button>
-          </>
-        ) : (
+      {!videoPath ? (
+        <div className="card">
           <button onClick={handleSelectFile} disabled={isProcessing || isExporting}>选择视频文件</button>
-        )}
-      </div>
-
-      {videoPath && (
-        <div className="timeline-mock">
+        </div>
+      ) : (
+        <div className="main-layout">
+          <div className="left-panel">
+            <div className="card">
+              <video className="video-player" src={videoUrl} controls ref={videoRef} />
+              <p className="path-display">当前：{videoPath}</p>
+              <button onClick={handleSelectFile} disabled={isProcessing || isExporting}>更换视频</button>
+            </div>
+          </div>
+          <div className="right-panel">
+            <div className="timeline-mock">
           <h3>字幕编辑：</h3>
           <div className="card action-card">
             <button
@@ -301,7 +302,9 @@ function App() {
             </>
           )}
         </div>
-      )}
+      </div>
+    </div>
+  )}
 
        <div className="log-box">
          {statusLog.map((log, idx) => <div key={idx}>{log}</div>)}

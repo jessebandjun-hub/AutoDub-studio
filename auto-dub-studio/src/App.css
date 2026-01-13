@@ -1,10 +1,29 @@
 
 .container {
-  max-width: 800px;
+  max-width: 2048px;
   margin: 0 auto;
   padding: 2rem;
   text-align: center;
 }
+
+.main-layout {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  text-align: left;
+}
+
+.left-panel {
+  flex: 1;
+  position: sticky;
+  top: 20px;
+}
+
+.right-panel {
+  flex: 1.5;
+  min-width: 0; /* Prevent flex overflow */
+}
+
 .card {
   padding: 1.5em;
   border: 1px solid #444;
@@ -118,4 +137,17 @@ button:disabled {
 }
 .editor-text {
   flex: 1;
+}
+
+@media (max-width: 900px) {
+  .main-layout {
+    flex-direction: column;
+  }
+  .left-panel, .right-panel {
+    width: 100%;
+    flex: none;
+  }
+  .left-panel {
+    position: static;
+  }
 }
