@@ -4,23 +4,22 @@ const path = require("path");
 const fs = require("fs");
 const ffmpeg = require("fluent-ffmpeg");
 const require$$2 = require("os");
-const require$$0$5 = require("node:crypto");
-const require$$1$5 = require("node:fs");
+const node_crypto = require("node:crypto");
+const node_fs = require("node:fs");
 const require$$0$3 = require("events");
 const require$$1$1 = require("https");
-const require$$1$2 = require("http");
-const require$$0$4 = require("net");
+const require$$2$1 = require("http");
+const require$$3 = require("net");
 const require$$4 = require("tls");
 const require$$1 = require("crypto");
 const require$$0$2 = require("stream");
 const require$$7 = require("url");
 const require$$0 = require("zlib");
 const require$$0$1 = require("buffer");
-const require$$2$1 = require("assert");
-const require$$1$3 = require("tty");
-const require$$1$4 = require("util");
+const require$$3$1 = require("assert");
+const require$$1$2 = require("tty");
+const require$$1$3 = require("util");
 var commonjsGlobal = typeof globalThis !== "undefined" ? globalThis : typeof window !== "undefined" ? window : typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : {};
-var edgeTts = {};
 var bufferUtil$1 = { exports: {} };
 const BINARY_TYPES$2 = ["nodebuffer", "arraybuffer", "fragments"];
 const hasBlob$1 = typeof Blob !== "undefined";
@@ -2423,8 +2422,8 @@ function format$1(extensions) {
 var extension$1 = { format: format$1, parse: parse$2 };
 const EventEmitter$1 = require$$0$3;
 const https$1 = require$$1$1;
-const http$2 = require$$1$2;
-const net$1 = require$$0$4;
+const http$2 = require$$2$1;
+const net$1 = require$$3;
 const tls$1 = require$$4;
 const { randomBytes, createHash: createHash$1 } = require$$1;
 const { Duplex: Duplex$2, Readable } = require$$0$2;
@@ -3009,7 +3008,7 @@ function initAsClient(websocket2, address, protocols, options) {
     opts.socketPath = parts[0];
     opts.path = parts[1];
   }
-  let req2;
+  let req;
   if (opts.followRedirects) {
     if (websocket2._redirects === 0) {
       websocket2._originalIpc = isIpcUrl;
@@ -3034,32 +3033,32 @@ function initAsClient(websocket2, address, protocols, options) {
     if (opts.auth && !options.headers.authorization) {
       options.headers.authorization = "Basic " + Buffer.from(opts.auth).toString("base64");
     }
-    req2 = websocket2._req = request(opts);
+    req = websocket2._req = request(opts);
     if (websocket2._redirects) {
-      websocket2.emit("redirect", websocket2.url, req2);
+      websocket2.emit("redirect", websocket2.url, req);
     }
   } else {
-    req2 = websocket2._req = request(opts);
+    req = websocket2._req = request(opts);
   }
   if (opts.timeout) {
-    req2.on("timeout", () => {
-      abortHandshake$1(websocket2, req2, "Opening handshake has timed out");
+    req.on("timeout", () => {
+      abortHandshake$1(websocket2, req, "Opening handshake has timed out");
     });
   }
-  req2.on("error", (err) => {
-    if (req2 === null || req2[kAborted]) return;
-    req2 = websocket2._req = null;
+  req.on("error", (err) => {
+    if (req === null || req[kAborted]) return;
+    req = websocket2._req = null;
     emitErrorAndClose(websocket2, err);
   });
-  req2.on("response", (res) => {
+  req.on("response", (res) => {
     const location = res.headers.location;
     const statusCode = res.statusCode;
     if (location && opts.followRedirects && statusCode >= 300 && statusCode < 400) {
       if (++websocket2._redirects > opts.maxRedirects) {
-        abortHandshake$1(websocket2, req2, "Maximum redirects exceeded");
+        abortHandshake$1(websocket2, req, "Maximum redirects exceeded");
         return;
       }
-      req2.abort();
+      req.abort();
       let addr;
       try {
         addr = new URL(location, address);
@@ -3069,18 +3068,18 @@ function initAsClient(websocket2, address, protocols, options) {
         return;
       }
       initAsClient(websocket2, addr, protocols, options);
-    } else if (!websocket2.emit("unexpected-response", req2, res)) {
+    } else if (!websocket2.emit("unexpected-response", req, res)) {
       abortHandshake$1(
         websocket2,
-        req2,
+        req,
         `Unexpected server response: ${res.statusCode}`
       );
     }
   });
-  req2.on("upgrade", (res, socket, head) => {
+  req.on("upgrade", (res, socket, head) => {
     websocket2.emit("upgrade", res);
     if (websocket2.readyState !== WebSocket$2.CONNECTING) return;
-    req2 = websocket2._req = null;
+    req = websocket2._req = null;
     const upgrade = res.headers.upgrade;
     if (upgrade === void 0 || upgrade.toLowerCase() !== "websocket") {
       abortHandshake$1(websocket2, socket, "Invalid Upgrade header");
@@ -3145,9 +3144,9 @@ function initAsClient(websocket2, address, protocols, options) {
     });
   });
   if (opts.finishRequest) {
-    opts.finishRequest(req2, websocket2);
+    opts.finishRequest(req, websocket2);
   } else {
-    req2.end();
+    req.end();
   }
 }
 function emitErrorAndClose(websocket2, err) {
@@ -3429,7 +3428,7 @@ function parse(header) {
 }
 var subprotocol$1 = { parse };
 const EventEmitter = require$$0$3;
-const http$1 = require$$1$2;
+const http$1 = require$$2$1;
 const { Duplex } = require$$0$2;
 const { createHash } = require$$1;
 const extension = extension$1;
@@ -3504,7 +3503,7 @@ class WebSocketServer extends EventEmitter {
       );
     }
     if (options.port != null) {
-      this._server = http$1.createServer((req2, res) => {
+      this._server = http$1.createServer((req, res) => {
         const body = http$1.STATUS_CODES[426];
         res.writeHead(426, {
           "Content-Length": body.length,
@@ -3526,8 +3525,8 @@ class WebSocketServer extends EventEmitter {
       this._removeListeners = addListeners(this._server, {
         listening: this.emit.bind(this, "listening"),
         error: this.emit.bind(this, "error"),
-        upgrade: (req2, socket, head) => {
-          this.handleUpgrade(req2, socket, head, emitConnection);
+        upgrade: (req, socket, head) => {
+          this.handleUpgrade(req, socket, head, emitConnection);
         }
       });
     }
@@ -3605,10 +3604,10 @@ class WebSocketServer extends EventEmitter {
    * @return {Boolean} `true` if the request is valid, else `false`
    * @public
    */
-  shouldHandle(req2) {
+  shouldHandle(req) {
     if (this.options.path) {
-      const index = req2.url.indexOf("?");
-      const pathname = index !== -1 ? req2.url.slice(0, index) : req2.url;
+      const index = req.url.indexOf("?");
+      const pathname = index !== -1 ? req.url.slice(0, index) : req.url;
       if (pathname !== this.options.path) return false;
     }
     return true;
@@ -3622,49 +3621,49 @@ class WebSocketServer extends EventEmitter {
    * @param {Function} cb Callback
    * @public
    */
-  handleUpgrade(req2, socket, head, cb) {
+  handleUpgrade(req, socket, head, cb) {
     socket.on("error", socketOnError);
-    const key = req2.headers["sec-websocket-key"];
-    const upgrade = req2.headers.upgrade;
-    const version = +req2.headers["sec-websocket-version"];
-    if (req2.method !== "GET") {
+    const key = req.headers["sec-websocket-key"];
+    const upgrade = req.headers.upgrade;
+    const version = +req.headers["sec-websocket-version"];
+    if (req.method !== "GET") {
       const message = "Invalid HTTP method";
-      abortHandshakeOrEmitwsClientError(this, req2, socket, 405, message);
+      abortHandshakeOrEmitwsClientError(this, req, socket, 405, message);
       return;
     }
     if (upgrade === void 0 || upgrade.toLowerCase() !== "websocket") {
       const message = "Invalid Upgrade header";
-      abortHandshakeOrEmitwsClientError(this, req2, socket, 400, message);
+      abortHandshakeOrEmitwsClientError(this, req, socket, 400, message);
       return;
     }
     if (key === void 0 || !keyRegex.test(key)) {
       const message = "Missing or invalid Sec-WebSocket-Key header";
-      abortHandshakeOrEmitwsClientError(this, req2, socket, 400, message);
+      abortHandshakeOrEmitwsClientError(this, req, socket, 400, message);
       return;
     }
     if (version !== 13 && version !== 8) {
       const message = "Missing or invalid Sec-WebSocket-Version header";
-      abortHandshakeOrEmitwsClientError(this, req2, socket, 400, message, {
+      abortHandshakeOrEmitwsClientError(this, req, socket, 400, message, {
         "Sec-WebSocket-Version": "13, 8"
       });
       return;
     }
-    if (!this.shouldHandle(req2)) {
+    if (!this.shouldHandle(req)) {
       abortHandshake(socket, 400);
       return;
     }
-    const secWebSocketProtocol = req2.headers["sec-websocket-protocol"];
+    const secWebSocketProtocol = req.headers["sec-websocket-protocol"];
     let protocols = /* @__PURE__ */ new Set();
     if (secWebSocketProtocol !== void 0) {
       try {
         protocols = subprotocol.parse(secWebSocketProtocol);
       } catch (err) {
         const message = "Invalid Sec-WebSocket-Protocol header";
-        abortHandshakeOrEmitwsClientError(this, req2, socket, 400, message);
+        abortHandshakeOrEmitwsClientError(this, req, socket, 400, message);
         return;
       }
     }
-    const secWebSocketExtensions = req2.headers["sec-websocket-extensions"];
+    const secWebSocketExtensions = req.headers["sec-websocket-extensions"];
     const extensions = {};
     if (this.options.perMessageDeflate && secWebSocketExtensions !== void 0) {
       const perMessageDeflate = new PerMessageDeflate2(
@@ -3680,15 +3679,15 @@ class WebSocketServer extends EventEmitter {
         }
       } catch (err) {
         const message = "Invalid or unacceptable Sec-WebSocket-Extensions header";
-        abortHandshakeOrEmitwsClientError(this, req2, socket, 400, message);
+        abortHandshakeOrEmitwsClientError(this, req, socket, 400, message);
         return;
       }
     }
     if (this.options.verifyClient) {
       const info = {
-        origin: req2.headers[`${version === 8 ? "sec-websocket-origin" : "origin"}`],
-        secure: !!(req2.socket.authorized || req2.socket.encrypted),
-        req: req2
+        origin: req.headers[`${version === 8 ? "sec-websocket-origin" : "origin"}`],
+        secure: !!(req.socket.authorized || req.socket.encrypted),
+        req
       };
       if (this.options.verifyClient.length === 2) {
         this.options.verifyClient(info, (verified, code, message, headers) => {
@@ -3699,7 +3698,7 @@ class WebSocketServer extends EventEmitter {
             extensions,
             key,
             protocols,
-            req2,
+            req,
             socket,
             head,
             cb
@@ -3709,7 +3708,7 @@ class WebSocketServer extends EventEmitter {
       }
       if (!this.options.verifyClient(info)) return abortHandshake(socket, 401);
     }
-    this.completeUpgrade(extensions, key, protocols, req2, socket, head, cb);
+    this.completeUpgrade(extensions, key, protocols, req, socket, head, cb);
   }
   /**
    * Upgrade the connection to WebSocket.
@@ -3724,7 +3723,7 @@ class WebSocketServer extends EventEmitter {
    * @throws {Error} If called more than once with the same socket
    * @private
    */
-  completeUpgrade(extensions, key, protocols, req2, socket, head, cb) {
+  completeUpgrade(extensions, key, protocols, req, socket, head, cb) {
     if (!socket.readable || !socket.writable) return socket.destroy();
     if (socket[kWebSocket]) {
       throw new Error(
@@ -3741,7 +3740,7 @@ class WebSocketServer extends EventEmitter {
     ];
     const ws2 = new this.options.WebSocket(null, void 0, this.options);
     if (protocols.size) {
-      const protocol = this.options.handleProtocols ? this.options.handleProtocols(protocols, req2) : protocols.values().next().value;
+      const protocol = this.options.handleProtocols ? this.options.handleProtocols(protocols, req) : protocols.values().next().value;
       if (protocol) {
         headers.push(`Sec-WebSocket-Protocol: ${protocol}`);
         ws2._protocol = protocol;
@@ -3755,7 +3754,7 @@ class WebSocketServer extends EventEmitter {
       headers.push(`Sec-WebSocket-Extensions: ${value}`);
       ws2._extensions = extensions;
     }
-    this.emit("headers", headers, req2);
+    this.emit("headers", headers, req);
     socket.write(headers.concat("\r\n").join("\r\n"));
     socket.removeListener("error", socketOnError);
     ws2.setSocket(socket, head, {
@@ -3772,7 +3771,7 @@ class WebSocketServer extends EventEmitter {
         }
       });
     }
-    cb(ws2, req2);
+    cb(ws2, req);
   }
 }
 var websocketServer = WebSocketServer;
@@ -3805,11 +3804,11 @@ function abortHandshake(socket, code, message, headers) {
 ` + Object.keys(headers).map((h) => `${h}: ${headers[h]}`).join("\r\n") + "\r\n\r\n" + message
   );
 }
-function abortHandshakeOrEmitwsClientError(server, req2, socket, code, message, headers) {
+function abortHandshakeOrEmitwsClientError(server, req, socket, code, message, headers) {
   if (server.listenerCount("wsClientError")) {
     const err = new Error(message);
     Error.captureStackTrace(err, abortHandshakeOrEmitwsClientError);
-    server.emit("wsClientError", err, socket, req2);
+    server.emit("wsClientError", err, socket, req);
   } else {
     abortHandshake(socket, code, message, headers);
   }
@@ -3822,8 +3821,8 @@ WebSocket2.Sender = sender;
 WebSocket2.WebSocket = WebSocket2;
 WebSocket2.WebSocketServer = WebSocket2.Server;
 var ws = WebSocket2;
-var dist$1 = {};
-var src = { exports: {} };
+var agent = {};
+var src$1 = { exports: {} };
 var browser = { exports: {} };
 var ms;
 var hasRequiredMs;
@@ -4312,7 +4311,7 @@ function requireSupportsColor() {
   if (hasRequiredSupportsColor) return supportsColor_1;
   hasRequiredSupportsColor = 1;
   const os = require$$2;
-  const tty = require$$1$3;
+  const tty = require$$1$2;
   const hasFlag2 = requireHasFlag();
   const { env } = process;
   let forceColor;
@@ -4413,8 +4412,8 @@ function requireNode() {
   if (hasRequiredNode) return node.exports;
   hasRequiredNode = 1;
   (function(module, exports$1) {
-    const tty = require$$1$3;
-    const util = require$$1$4;
+    const tty = require$$1$2;
+    const util = require$$1$3;
     exports$1.init = init;
     exports$1.log = log;
     exports$1.formatArgs = formatArgs;
@@ -4585,235 +4584,210 @@ function requireNode() {
   return node.exports;
 }
 if (typeof process === "undefined" || process.type === "renderer" || process.browser === true || process.__nwjs) {
-  src.exports = requireBrowser();
+  src$1.exports = requireBrowser();
 } else {
-  src.exports = requireNode();
+  src$1.exports = requireNode();
 }
-var srcExports = src.exports;
-var dist = {};
-var helpers = {};
-var __createBinding$1 = commonjsGlobal && commonjsGlobal.__createBinding || (Object.create ? function(o, m, k, k2) {
-  if (k2 === void 0) k2 = k;
-  var desc = Object.getOwnPropertyDescriptor(m, k);
-  if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-    desc = { enumerable: true, get: function() {
-      return m[k];
-    } };
-  }
-  Object.defineProperty(o, k2, desc);
-} : function(o, m, k, k2) {
-  if (k2 === void 0) k2 = k;
-  o[k2] = m[k];
-});
-var __setModuleDefault$1 = commonjsGlobal && commonjsGlobal.__setModuleDefault || (Object.create ? function(o, v) {
-  Object.defineProperty(o, "default", { enumerable: true, value: v });
-} : function(o, v) {
-  o["default"] = v;
-});
-var __importStar$1 = commonjsGlobal && commonjsGlobal.__importStar || function(mod) {
-  if (mod && mod.__esModule) return mod;
-  var result = {};
-  if (mod != null) {
-    for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding$1(result, mod, k);
-  }
-  __setModuleDefault$1(result, mod);
-  return result;
-};
-Object.defineProperty(helpers, "__esModule", { value: true });
-helpers.req = helpers.json = helpers.toBuffer = void 0;
-const http = __importStar$1(require$$1$2);
-const https = __importStar$1(require$$1$1);
-async function toBuffer(stream2) {
-  let length = 0;
-  const chunks = [];
-  for await (const chunk of stream2) {
-    length += chunk.length;
-    chunks.push(chunk);
-  }
-  return Buffer.concat(chunks, length);
-}
-helpers.toBuffer = toBuffer;
-async function json(stream2) {
-  const buf = await toBuffer(stream2);
-  const str = buf.toString("utf8");
-  try {
-    return JSON.parse(str);
-  } catch (_err) {
-    const err = _err;
-    err.message += ` (input: ${str})`;
-    throw err;
-  }
-}
-helpers.json = json;
-function req(url, opts = {}) {
-  const href = typeof url === "string" ? url : url.href;
-  const req2 = (href.startsWith("https:") ? https : http).request(url, opts);
-  const promise = new Promise((resolve, reject) => {
-    req2.once("response", resolve).once("error", reject).end();
-  });
-  req2.then = promise.then.bind(promise);
-  return req2;
-}
-helpers.req = req;
-(function(exports$1) {
-  var __createBinding2 = commonjsGlobal && commonjsGlobal.__createBinding || (Object.create ? function(o, m, k, k2) {
-    if (k2 === void 0) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() {
-        return m[k];
-      } };
-    }
-    Object.defineProperty(o, k2, desc);
-  } : function(o, m, k, k2) {
-    if (k2 === void 0) k2 = k;
-    o[k2] = m[k];
-  });
-  var __setModuleDefault2 = commonjsGlobal && commonjsGlobal.__setModuleDefault || (Object.create ? function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-  } : function(o, v) {
-    o["default"] = v;
-  });
-  var __importStar2 = commonjsGlobal && commonjsGlobal.__importStar || function(mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) {
-      for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding2(result, mod, k);
-    }
-    __setModuleDefault2(result, mod);
-    return result;
-  };
-  var __exportStar = commonjsGlobal && commonjsGlobal.__exportStar || function(m, exports$12) {
-    for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports$12, p)) __createBinding2(exports$12, m, p);
-  };
-  Object.defineProperty(exports$1, "__esModule", { value: true });
-  exports$1.Agent = void 0;
-  const net2 = __importStar2(require$$0$4);
-  const http2 = __importStar2(require$$1$2);
-  const https_1 = require$$1$1;
-  __exportStar(helpers, exports$1);
-  const INTERNAL = Symbol("AgentBaseInternalState");
-  class Agent extends http2.Agent {
-    constructor(opts) {
-      super(opts);
-      this[INTERNAL] = {};
-    }
-    /**
-     * Determine whether this is an `http` or `https` request.
-     */
-    isSecureEndpoint(options) {
-      if (options) {
-        if (typeof options.secureEndpoint === "boolean") {
-          return options.secureEndpoint;
+var srcExports = src$1.exports;
+var promisify$1 = {};
+Object.defineProperty(promisify$1, "__esModule", { value: true });
+function promisify(fn) {
+  return function(req, opts) {
+    return new Promise((resolve, reject) => {
+      fn.call(this, req, opts, (err, rtn) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(rtn);
         }
-        if (typeof options.protocol === "string") {
-          return options.protocol === "https:";
-        }
-      }
-      const { stack } = new Error();
-      if (typeof stack !== "string")
-        return false;
-      return stack.split("\n").some((l) => l.indexOf("(https.js:") !== -1 || l.indexOf("node:https:") !== -1);
-    }
-    // In order to support async signatures in `connect()` and Node's native
-    // connection pooling in `http.Agent`, the array of sockets for each origin
-    // has to be updated synchronously. This is so the length of the array is
-    // accurate when `addRequest()` is next called. We achieve this by creating a
-    // fake socket and adding it to `sockets[origin]` and incrementing
-    // `totalSocketCount`.
-    incrementSockets(name) {
-      if (this.maxSockets === Infinity && this.maxTotalSockets === Infinity) {
-        return null;
-      }
-      if (!this.sockets[name]) {
-        this.sockets[name] = [];
-      }
-      const fakeSocket = new net2.Socket({ writable: false });
-      this.sockets[name].push(fakeSocket);
-      this.totalSocketCount++;
-      return fakeSocket;
-    }
-    decrementSockets(name, socket) {
-      if (!this.sockets[name] || socket === null) {
-        return;
-      }
-      const sockets = this.sockets[name];
-      const index = sockets.indexOf(socket);
-      if (index !== -1) {
-        sockets.splice(index, 1);
-        this.totalSocketCount--;
-        if (sockets.length === 0) {
-          delete this.sockets[name];
-        }
-      }
-    }
-    // In order to properly update the socket pool, we need to call `getName()` on
-    // the core `https.Agent` if it is a secureEndpoint.
-    getName(options) {
-      const secureEndpoint = this.isSecureEndpoint(options);
-      if (secureEndpoint) {
-        return https_1.Agent.prototype.getName.call(this, options);
-      }
-      return super.getName(options);
-    }
-    createSocket(req2, options, cb) {
-      const connectOpts = {
-        ...options,
-        secureEndpoint: this.isSecureEndpoint(options)
-      };
-      const name = this.getName(connectOpts);
-      const fakeSocket = this.incrementSockets(name);
-      Promise.resolve().then(() => this.connect(req2, connectOpts)).then((socket) => {
-        this.decrementSockets(name, fakeSocket);
-        if (socket instanceof http2.Agent) {
-          try {
-            return socket.addRequest(req2, connectOpts);
-          } catch (err) {
-            return cb(err);
-          }
-        }
-        this[INTERNAL].currentSocket = socket;
-        super.createSocket(req2, options, cb);
-      }, (err) => {
-        this.decrementSockets(name, fakeSocket);
-        cb(err);
       });
-    }
-    createConnection() {
-      const socket = this[INTERNAL].currentSocket;
-      this[INTERNAL].currentSocket = void 0;
-      if (!socket) {
-        throw new Error("No socket was returned in the `connect()` function");
+    });
+  };
+}
+promisify$1.default = promisify;
+var __importDefault$3 = commonjsGlobal && commonjsGlobal.__importDefault || function(mod) {
+  return mod && mod.__esModule ? mod : { "default": mod };
+};
+const events_1 = require$$0$3;
+const debug_1$2 = __importDefault$3(srcExports);
+const promisify_1 = __importDefault$3(promisify$1);
+const debug$2 = debug_1$2.default("agent-base");
+function isAgent(v) {
+  return Boolean(v) && typeof v.addRequest === "function";
+}
+function isSecureEndpoint() {
+  const { stack } = new Error();
+  if (typeof stack !== "string")
+    return false;
+  return stack.split("\n").some((l) => l.indexOf("(https.js:") !== -1 || l.indexOf("node:https:") !== -1);
+}
+function createAgent(callback, opts) {
+  return new createAgent.Agent(callback, opts);
+}
+(function(createAgent2) {
+  class Agent extends events_1.EventEmitter {
+    constructor(callback, _opts) {
+      super();
+      let opts = _opts;
+      if (typeof callback === "function") {
+        this.callback = callback;
+      } else if (callback) {
+        opts = callback;
       }
-      return socket;
+      this.timeout = null;
+      if (opts && typeof opts.timeout === "number") {
+        this.timeout = opts.timeout;
+      }
+      this.maxFreeSockets = 1;
+      this.maxSockets = 1;
+      this.maxTotalSockets = Infinity;
+      this.sockets = {};
+      this.freeSockets = {};
+      this.requests = {};
+      this.options = {};
     }
     get defaultPort() {
-      return this[INTERNAL].defaultPort ?? (this.protocol === "https:" ? 443 : 80);
+      if (typeof this.explicitDefaultPort === "number") {
+        return this.explicitDefaultPort;
+      }
+      return isSecureEndpoint() ? 443 : 80;
     }
     set defaultPort(v) {
-      if (this[INTERNAL]) {
-        this[INTERNAL].defaultPort = v;
-      }
+      this.explicitDefaultPort = v;
     }
     get protocol() {
-      return this[INTERNAL].protocol ?? (this.isSecureEndpoint() ? "https:" : "http:");
+      if (typeof this.explicitProtocol === "string") {
+        return this.explicitProtocol;
+      }
+      return isSecureEndpoint() ? "https:" : "http:";
     }
     set protocol(v) {
-      if (this[INTERNAL]) {
-        this[INTERNAL].protocol = v;
+      this.explicitProtocol = v;
+    }
+    callback(req, opts, fn) {
+      throw new Error('"agent-base" has no default implementation, you must subclass and override `callback()`');
+    }
+    /**
+     * Called by node-core's "_http_client.js" module when creating
+     * a new HTTP request with this Agent instance.
+     *
+     * @api public
+     */
+    addRequest(req, _opts) {
+      const opts = Object.assign({}, _opts);
+      if (typeof opts.secureEndpoint !== "boolean") {
+        opts.secureEndpoint = isSecureEndpoint();
+      }
+      if (opts.host == null) {
+        opts.host = "localhost";
+      }
+      if (opts.port == null) {
+        opts.port = opts.secureEndpoint ? 443 : 80;
+      }
+      if (opts.protocol == null) {
+        opts.protocol = opts.secureEndpoint ? "https:" : "http:";
+      }
+      if (opts.host && opts.path) {
+        delete opts.path;
+      }
+      delete opts.agent;
+      delete opts.hostname;
+      delete opts._defaultAgent;
+      delete opts.defaultPort;
+      delete opts.createConnection;
+      req._last = true;
+      req.shouldKeepAlive = false;
+      let timedOut = false;
+      let timeoutId = null;
+      const timeoutMs = opts.timeout || this.timeout;
+      const onerror = (err) => {
+        if (req._hadError)
+          return;
+        req.emit("error", err);
+        req._hadError = true;
+      };
+      const ontimeout = () => {
+        timeoutId = null;
+        timedOut = true;
+        const err = new Error(`A "socket" was not created for HTTP request before ${timeoutMs}ms`);
+        err.code = "ETIMEOUT";
+        onerror(err);
+      };
+      const callbackError = (err) => {
+        if (timedOut)
+          return;
+        if (timeoutId !== null) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        onerror(err);
+      };
+      const onsocket = (socket) => {
+        if (timedOut)
+          return;
+        if (timeoutId != null) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        if (isAgent(socket)) {
+          debug$2("Callback returned another Agent instance %o", socket.constructor.name);
+          socket.addRequest(req, opts);
+          return;
+        }
+        if (socket) {
+          socket.once("free", () => {
+            this.freeSocket(socket, opts);
+          });
+          req.onSocket(socket);
+          return;
+        }
+        const err = new Error(`no Duplex stream was returned to agent-base for \`${req.method} ${req.path}\``);
+        onerror(err);
+      };
+      if (typeof this.callback !== "function") {
+        onerror(new Error("`callback` is not defined"));
+        return;
+      }
+      if (!this.promisifiedCallback) {
+        if (this.callback.length >= 3) {
+          debug$2("Converting legacy callback function to promise");
+          this.promisifiedCallback = promisify_1.default(this.callback);
+        } else {
+          this.promisifiedCallback = this.callback;
+        }
+      }
+      if (typeof timeoutMs === "number" && timeoutMs > 0) {
+        timeoutId = setTimeout(ontimeout, timeoutMs);
+      }
+      if ("port" in opts && typeof opts.port !== "number") {
+        opts.port = Number(opts.port);
+      }
+      try {
+        debug$2("Resolving socket for %o request: %o", opts.protocol, `${req.method} ${req.path}`);
+        Promise.resolve(this.promisifiedCallback(req, opts)).then(onsocket, callbackError);
+      } catch (err) {
+        Promise.reject(err).catch(callbackError);
       }
     }
+    freeSocket(socket, opts) {
+      debug$2("Freeing socket %o %o", socket.constructor.name, opts);
+      socket.destroy();
+    }
+    destroy() {
+      debug$2("Destroying agent %o", this.constructor.name);
+    }
   }
-  exports$1.Agent = Agent;
-})(dist);
+  createAgent2.Agent = Agent;
+  createAgent2.prototype = createAgent2.Agent.prototype;
+})(createAgent || (createAgent = {}));
+var src = createAgent;
 var parseProxyResponse$1 = {};
-var __importDefault$1 = commonjsGlobal && commonjsGlobal.__importDefault || function(mod) {
+var __importDefault$2 = commonjsGlobal && commonjsGlobal.__importDefault || function(mod) {
   return mod && mod.__esModule ? mod : { "default": mod };
 };
 Object.defineProperty(parseProxyResponse$1, "__esModule", { value: true });
-parseProxyResponse$1.parseProxyResponse = void 0;
-const debug_1$1 = __importDefault$1(srcExports);
-const debug$1 = (0, debug_1$1.default)("https-proxy-agent:parse-proxy-response");
+const debug_1$1 = __importDefault$2(srcExports);
+const debug$1 = debug_1$1.default("https-proxy-agent:parse-proxy-response");
 function parseProxyResponse(socket) {
   return new Promise((resolve, reject) => {
     let buffersLength = 0;
@@ -4828,12 +4802,14 @@ function parseProxyResponse(socket) {
     function cleanup() {
       socket.removeListener("end", onend);
       socket.removeListener("error", onerror);
+      socket.removeListener("close", onclose);
       socket.removeListener("readable", read);
     }
+    function onclose(err) {
+      debug$1("onclose had error %o", err);
+    }
     function onend() {
-      cleanup();
       debug$1("onend");
-      reject(new Error("Proxy connection ended before receiving CONNECT response"));
     }
     function onerror(err) {
       cleanup();
@@ -4850,184 +4826,163 @@ function parseProxyResponse(socket) {
         read();
         return;
       }
-      const headerParts = buffered.slice(0, endOfHeaders).toString("ascii").split("\r\n");
-      const firstLine = headerParts.shift();
-      if (!firstLine) {
-        socket.destroy();
-        return reject(new Error("No header received from proxy CONNECT response"));
-      }
-      const firstLineParts = firstLine.split(" ");
-      const statusCode = +firstLineParts[1];
-      const statusText = firstLineParts.slice(2).join(" ");
-      const headers = {};
-      for (const header of headerParts) {
-        if (!header)
-          continue;
-        const firstColon = header.indexOf(":");
-        if (firstColon === -1) {
-          socket.destroy();
-          return reject(new Error(`Invalid header from proxy CONNECT response: "${header}"`));
-        }
-        const key = header.slice(0, firstColon).toLowerCase();
-        const value = header.slice(firstColon + 1).trimStart();
-        const current = headers[key];
-        if (typeof current === "string") {
-          headers[key] = [current, value];
-        } else if (Array.isArray(current)) {
-          current.push(value);
-        } else {
-          headers[key] = value;
-        }
-      }
-      debug$1("got proxy server response: %o %o", firstLine, headers);
-      cleanup();
+      const firstLine = buffered.toString("ascii", 0, buffered.indexOf("\r\n"));
+      const statusCode = +firstLine.split(" ")[1];
+      debug$1("got proxy server response: %o", firstLine);
       resolve({
-        connect: {
-          statusCode,
-          statusText,
-          headers
-        },
+        statusCode,
         buffered
       });
     }
     socket.on("error", onerror);
+    socket.on("close", onclose);
     socket.on("end", onend);
     read();
   });
 }
-parseProxyResponse$1.parseProxyResponse = parseProxyResponse;
-var __createBinding = commonjsGlobal && commonjsGlobal.__createBinding || (Object.create ? function(o, m, k, k2) {
-  if (k2 === void 0) k2 = k;
-  var desc = Object.getOwnPropertyDescriptor(m, k);
-  if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-    desc = { enumerable: true, get: function() {
-      return m[k];
-    } };
+parseProxyResponse$1.default = parseProxyResponse;
+var __awaiter = commonjsGlobal && commonjsGlobal.__awaiter || function(thisArg, _arguments, P, generator) {
+  function adopt(value) {
+    return value instanceof P ? value : new P(function(resolve) {
+      resolve(value);
+    });
   }
-  Object.defineProperty(o, k2, desc);
-} : function(o, m, k, k2) {
-  if (k2 === void 0) k2 = k;
-  o[k2] = m[k];
-});
-var __setModuleDefault = commonjsGlobal && commonjsGlobal.__setModuleDefault || (Object.create ? function(o, v) {
-  Object.defineProperty(o, "default", { enumerable: true, value: v });
-} : function(o, v) {
-  o["default"] = v;
-});
-var __importStar = commonjsGlobal && commonjsGlobal.__importStar || function(mod) {
-  if (mod && mod.__esModule) return mod;
-  var result = {};
-  if (mod != null) {
-    for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-  }
-  __setModuleDefault(result, mod);
-  return result;
+  return new (P || (P = Promise))(function(resolve, reject) {
+    function fulfilled(value) {
+      try {
+        step(generator.next(value));
+      } catch (e) {
+        reject(e);
+      }
+    }
+    function rejected(value) {
+      try {
+        step(generator["throw"](value));
+      } catch (e) {
+        reject(e);
+      }
+    }
+    function step(result) {
+      result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
+    }
+    step((generator = generator.apply(thisArg, _arguments || [])).next());
+  });
 };
-var __importDefault = commonjsGlobal && commonjsGlobal.__importDefault || function(mod) {
+var __importDefault$1 = commonjsGlobal && commonjsGlobal.__importDefault || function(mod) {
   return mod && mod.__esModule ? mod : { "default": mod };
 };
-Object.defineProperty(dist$1, "__esModule", { value: true });
-dist$1.HttpsProxyAgent = void 0;
-const net = __importStar(require$$0$4);
-const tls = __importStar(require$$4);
-const assert_1 = __importDefault(require$$2$1);
-const debug_1 = __importDefault(srcExports);
-const agent_base_1 = dist;
-const url_1 = require$$7;
-const parse_proxy_response_1 = parseProxyResponse$1;
-const debug = (0, debug_1.default)("https-proxy-agent");
-const setServernameFromNonIpHost = (options) => {
-  if (options.servername === void 0 && options.host && !net.isIP(options.host)) {
-    return {
-      ...options,
-      servername: options.host
-    };
-  }
-  return options;
-};
+Object.defineProperty(agent, "__esModule", { value: true });
+const net_1 = __importDefault$1(require$$3);
+const tls_1 = __importDefault$1(require$$4);
+const url_1 = __importDefault$1(require$$7);
+const assert_1 = __importDefault$1(require$$3$1);
+const debug_1 = __importDefault$1(srcExports);
+const agent_base_1 = src;
+const parse_proxy_response_1 = __importDefault$1(parseProxyResponse$1);
+const debug = debug_1.default("https-proxy-agent:agent");
 class HttpsProxyAgent extends agent_base_1.Agent {
-  constructor(proxy, opts) {
+  constructor(_opts) {
+    let opts;
+    if (typeof _opts === "string") {
+      opts = url_1.default.parse(_opts);
+    } else {
+      opts = _opts;
+    }
+    if (!opts) {
+      throw new Error("an HTTP(S) proxy server `host` and `port` must be specified!");
+    }
+    debug("creating new HttpsProxyAgent instance: %o", opts);
     super(opts);
-    this.options = { path: void 0 };
-    this.proxy = typeof proxy === "string" ? new url_1.URL(proxy) : proxy;
-    this.proxyHeaders = (opts == null ? void 0 : opts.headers) ?? {};
-    debug("Creating new HttpsProxyAgent instance: %o", this.proxy.href);
-    const host = (this.proxy.hostname || this.proxy.host).replace(/^\[|\]$/g, "");
-    const port = this.proxy.port ? parseInt(this.proxy.port, 10) : this.proxy.protocol === "https:" ? 443 : 80;
-    this.connectOpts = {
-      // Attempt to negotiate http/1.1 for proxy servers that support http/2
-      ALPNProtocols: ["http/1.1"],
-      ...opts ? omit(opts, "headers") : null,
-      host,
-      port
-    };
+    const proxy = Object.assign({}, opts);
+    this.secureProxy = opts.secureProxy || isHTTPS(proxy.protocol);
+    proxy.host = proxy.hostname || proxy.host;
+    if (typeof proxy.port === "string") {
+      proxy.port = parseInt(proxy.port, 10);
+    }
+    if (!proxy.port && proxy.host) {
+      proxy.port = this.secureProxy ? 443 : 80;
+    }
+    if (this.secureProxy && !("ALPNProtocols" in proxy)) {
+      proxy.ALPNProtocols = ["http 1.1"];
+    }
+    if (proxy.host && proxy.path) {
+      delete proxy.path;
+      delete proxy.pathname;
+    }
+    this.proxy = proxy;
   }
   /**
    * Called when the node-core HTTP client library is creating a
    * new HTTP request.
+   *
+   * @api protected
    */
-  async connect(req2, opts) {
-    const { proxy } = this;
-    if (!opts.host) {
-      throw new TypeError('No "host" provided');
-    }
-    let socket;
-    if (proxy.protocol === "https:") {
-      debug("Creating `tls.Socket`: %o", this.connectOpts);
-      socket = tls.connect(setServernameFromNonIpHost(this.connectOpts));
-    } else {
-      debug("Creating `net.Socket`: %o", this.connectOpts);
-      socket = net.connect(this.connectOpts);
-    }
-    const headers = typeof this.proxyHeaders === "function" ? this.proxyHeaders() : { ...this.proxyHeaders };
-    const host = net.isIPv6(opts.host) ? `[${opts.host}]` : opts.host;
-    let payload = `CONNECT ${host}:${opts.port} HTTP/1.1\r
-`;
-    if (proxy.username || proxy.password) {
-      const auth = `${decodeURIComponent(proxy.username)}:${decodeURIComponent(proxy.password)}`;
-      headers["Proxy-Authorization"] = `Basic ${Buffer.from(auth).toString("base64")}`;
-    }
-    headers.Host = `${host}:${opts.port}`;
-    if (!headers["Proxy-Connection"]) {
-      headers["Proxy-Connection"] = this.keepAlive ? "Keep-Alive" : "close";
-    }
-    for (const name of Object.keys(headers)) {
-      payload += `${name}: ${headers[name]}\r
-`;
-    }
-    const proxyResponsePromise = (0, parse_proxy_response_1.parseProxyResponse)(socket);
-    socket.write(`${payload}\r
-`);
-    const { connect, buffered } = await proxyResponsePromise;
-    req2.emit("proxyConnect", connect);
-    this.emit("proxyConnect", connect, req2);
-    if (connect.statusCode === 200) {
-      req2.once("socket", resume);
-      if (opts.secureEndpoint) {
-        debug("Upgrading socket connection to TLS");
-        return tls.connect({
-          ...omit(setServernameFromNonIpHost(opts), "host", "path", "port"),
-          socket
-        });
+  callback(req, opts) {
+    return __awaiter(this, void 0, void 0, function* () {
+      const { proxy, secureProxy } = this;
+      let socket;
+      if (secureProxy) {
+        debug("Creating `tls.Socket`: %o", proxy);
+        socket = tls_1.default.connect(proxy);
+      } else {
+        debug("Creating `net.Socket`: %o", proxy);
+        socket = net_1.default.connect(proxy);
       }
-      return socket;
-    }
-    socket.destroy();
-    const fakeSocket = new net.Socket({ writable: false });
-    fakeSocket.readable = true;
-    req2.once("socket", (s) => {
-      debug("Replaying proxy buffer for failed request");
-      (0, assert_1.default)(s.listenerCount("data") > 0);
-      s.push(buffered);
-      s.push(null);
+      const headers = Object.assign({}, proxy.headers);
+      const hostname = `${opts.host}:${opts.port}`;
+      let payload = `CONNECT ${hostname} HTTP/1.1\r
+`;
+      if (proxy.auth) {
+        headers["Proxy-Authorization"] = `Basic ${Buffer.from(proxy.auth).toString("base64")}`;
+      }
+      let { host, port, secureEndpoint } = opts;
+      if (!isDefaultPort(port, secureEndpoint)) {
+        host += `:${port}`;
+      }
+      headers.Host = host;
+      headers.Connection = "close";
+      for (const name of Object.keys(headers)) {
+        payload += `${name}: ${headers[name]}\r
+`;
+      }
+      const proxyResponsePromise = parse_proxy_response_1.default(socket);
+      socket.write(`${payload}\r
+`);
+      const { statusCode, buffered } = yield proxyResponsePromise;
+      if (statusCode === 200) {
+        req.once("socket", resume);
+        if (opts.secureEndpoint) {
+          debug("Upgrading socket connection to TLS");
+          const servername = opts.servername || opts.host;
+          return tls_1.default.connect(Object.assign(Object.assign({}, omit(opts, "host", "hostname", "path", "port")), {
+            socket,
+            servername
+          }));
+        }
+        return socket;
+      }
+      socket.destroy();
+      const fakeSocket = new net_1.default.Socket({ writable: false });
+      fakeSocket.readable = true;
+      req.once("socket", (s) => {
+        debug("replaying proxy buffer for failed request");
+        assert_1.default(s.listenerCount("data") > 0);
+        s.push(buffered);
+        s.push(null);
+      });
+      return fakeSocket;
     });
-    return fakeSocket;
   }
 }
-HttpsProxyAgent.protocols = ["http", "https"];
-dist$1.HttpsProxyAgent = HttpsProxyAgent;
+agent.default = HttpsProxyAgent;
 function resume(socket) {
   socket.resume();
+}
+function isDefaultPort(port, secure) {
+  return Boolean(!secure && port === 80 || secure && port === 443);
+}
+function isHTTPS(protocol) {
+  return typeof protocol === "string" ? /^https:?$/i.test(protocol) : false;
 }
 function omit(obj, ...keys) {
   const ret = {};
@@ -5039,33 +4994,42 @@ function omit(obj, ...keys) {
   }
   return ret;
 }
-var drm = {};
-(function(exports$1) {
-  Object.defineProperty(exports$1, "__esModule", { value: true });
-  exports$1.generateSecMsGecToken = exports$1.TRUSTED_CLIENT_TOKEN = exports$1.CHROMIUM_FULL_VERSION = void 0;
-  const node_crypto_12 = require$$0$5;
-  exports$1.CHROMIUM_FULL_VERSION = "130.0.2849.68";
-  exports$1.TRUSTED_CLIENT_TOKEN = "6A5AA1D4EAFF4E9FB37E23D68491D6F4";
-  const WINDOWS_FILE_TIME_EPOCH = 11644473600n;
-  function generateSecMsGecToken() {
-    const ticks = BigInt(Math.floor(Date.now() / 1e3 + Number(WINDOWS_FILE_TIME_EPOCH))) * 10000000n;
-    const roundedTicks = ticks - ticks % 3000000000n;
-    const strToHash = `${roundedTicks}${exports$1.TRUSTED_CLIENT_TOKEN}`;
-    const hash = (0, node_crypto_12.createHash)("sha256");
-    hash.update(strToHash, "ascii");
-    return hash.digest("hex").toUpperCase();
-  }
-  exports$1.generateSecMsGecToken = generateSecMsGecToken;
-})(drm);
-Object.defineProperty(edgeTts, "__esModule", { value: true });
-var EdgeTTS_1 = edgeTts.EdgeTTS = void 0;
-const node_crypto_1 = require$$0$5;
-const node_fs_1 = require$$1$5;
-const ws_1 = ws;
-const https_proxy_agent_1 = dist$1;
-const drm_1 = drm;
+var __importDefault = commonjsGlobal && commonjsGlobal.__importDefault || function(mod) {
+  return mod && mod.__esModule ? mod : { "default": mod };
+};
+const agent_1 = __importDefault(agent);
+function createHttpsProxyAgent(opts) {
+  return new agent_1.default(opts);
+}
+(function(createHttpsProxyAgent2) {
+  createHttpsProxyAgent2.HttpsProxyAgent = agent_1.default;
+  createHttpsProxyAgent2.prototype = agent_1.default.prototype;
+})(createHttpsProxyAgent || (createHttpsProxyAgent = {}));
+var dist = createHttpsProxyAgent;
+const CHROMIUM_FULL_VERSION = "130.0.2849.68";
+const TRUSTED_CLIENT_TOKEN = "6A5AA1D4EAFF4E9FB37E23D68491D6F4";
+const WINDOWS_FILE_TIME_EPOCH = 11644473600n;
+function generateSecMsGecToken() {
+  const ticks = BigInt(Math.floor(Date.now() / 1e3 + Number(WINDOWS_FILE_TIME_EPOCH))) * 10000000n;
+  const roundedTicks = ticks - ticks % 3000000000n;
+  const strToHash = `${roundedTicks}${TRUSTED_CLIENT_TOKEN}`;
+  const hash = node_crypto.createHash("sha256");
+  hash.update(strToHash, "ascii");
+  return hash.digest("hex").toUpperCase();
+}
 class EdgeTTS {
-  constructor({ voice = "zh-CN-XiaoyiNeural", lang = "zh-CN", outputFormat = "audio-24khz-48kbitrate-mono-mp3", saveSubtitles = false, proxy, rate = "default", pitch = "default", volume = "default", timeout = 1e4 } = {}) {
+  constructor({
+    voice = "zh-CN-XiaoyiNeural",
+    lang = "zh-CN",
+    outputFormat = "audio-24khz-48kbitrate-mono-mp3",
+    saveSubtitles = false,
+    proxy,
+    rate = "default",
+    pitch = "default",
+    volume = "default",
+    style,
+    timeout = 1e4
+  } = {}) {
     this.voice = voice;
     this.lang = lang;
     this.outputFormat = outputFormat;
@@ -5074,16 +5038,17 @@ class EdgeTTS {
     this.rate = rate;
     this.pitch = pitch;
     this.volume = volume;
+    this.style = style;
     this.timeout = timeout;
   }
   async _connectWebSocket() {
-    const wsConnect = new ws_1.WebSocket(`wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=${drm_1.TRUSTED_CLIENT_TOKEN}&Sec-MS-GEC=${(0, drm_1.generateSecMsGecToken)()}&Sec-MS-GEC-Version=1-${drm_1.CHROMIUM_FULL_VERSION}`, {
+    const wsConnect = new ws.WebSocket(`wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=${TRUSTED_CLIENT_TOKEN}&Sec-MS-GEC=${generateSecMsGecToken()}&Sec-MS-GEC-Version=1-${CHROMIUM_FULL_VERSION}`, {
       host: "speech.platform.bing.com",
       origin: "chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold",
       headers: {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 Edg/130.0.0.0"
       },
-      agent: this.proxy ? new https_proxy_agent_1.HttpsProxyAgent(this.proxy) : void 0
+      agent: this.proxy ? new dist.HttpsProxyAgent(this.proxy) : void 0
     });
     return new Promise((resolve, reject) => {
       wsConnect.on("open", () => {
@@ -5100,6 +5065,7 @@ Path:speech.config\r
                     "wordBoundaryEnabled": "true"
                   },
                   "outputFormat": "${this.outputFormat}"
+                  }
                 }
               }
             }
@@ -5133,22 +5099,27 @@ Path:speech.config\r
       }
       cue.part = fullPart;
     });
-    (0, node_fs_1.writeFileSync)(subPath, JSON.stringify(subFile, null, "  "), { encoding: "utf-8" });
+    node_fs.writeFileSync(subPath, JSON.stringify(subFile, null, "  "), { encoding: "utf-8" });
   }
   async ttsPromise(text, audioPath) {
     const _wsConnect = await this._connectWebSocket();
     return new Promise((resolve, reject) => {
-      let audioStream = (0, node_fs_1.createWriteStream)(audioPath);
+      let audioStream = node_fs.createWriteStream(audioPath);
       let subFile = [];
       let timeout = setTimeout(() => reject("Timed out"), this.timeout);
       _wsConnect.on("message", async (data, isBinary) => {
         if (isBinary) {
           let separator = "Path:audio\r\n";
-          let index = data.indexOf(separator) + separator.length;
-          let audioData = data.subarray(index);
-          audioStream.write(audioData);
+          let index = data.indexOf(separator);
+          if (index >= 0) {
+            let audioData = data.subarray(index + separator.length);
+            audioStream.write(audioData);
+          } else {
+            console.log("Binary message received but no audio separator found.");
+          }
         } else {
           let message = data.toString();
+          console.log("TTS Message:", message);
           if (message.includes("Path:turn.end")) {
             audioStream.end();
             _wsConnect.close();
@@ -5173,23 +5144,27 @@ Path:speech.config\r
           }
         }
       });
-      let requestId = (0, node_crypto_1.randomBytes)(16).toString("hex");
+      let requestId = node_crypto.randomBytes(16).toString("hex");
+      let ssml = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xmlns:mstts="https://www.w3.org/2001/mstts" xml:lang="${this.lang}">
+        <voice name="${this.voice}">`;
+      if (this.style) {
+        ssml += `<mstts:express-as style="${this.style}">`;
+      }
+      ssml += `<prosody rate="${this.rate}" pitch="${this.pitch}" volume="${this.volume}">
+            ${text}
+          </prosody>`;
+      if (this.style) {
+        ssml += `</mstts:express-as>`;
+      }
+      ssml += `</voice></speak>`;
       _wsConnect.send(`X-RequestId:${requestId}\r
 Content-Type:application/ssml+xml\r
 Path:ssml\r
 \r
-
-      <speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xmlns:mstts="https://www.w3.org/2001/mstts" xml:lang="${this.lang}">
-        <voice name="${this.voice}">
-          <prosody rate="${this.rate}" pitch="${this.pitch}" volume="${this.volume}">
-            ${text}
-          </prosody>
-        </voice>
-      </speak>`);
+${ssml}`);
     });
   }
 }
-EdgeTTS_1 = edgeTts.EdgeTTS = EdgeTTS;
 function getFfmpegPath() {
   const platform = require$$2.platform();
   let executableName = "ffmpeg";
@@ -5266,6 +5241,7 @@ electron.app.whenReady().then(() => {
       rate: "+0%",
       pitch: "+0Hz",
       volume: "+0%",
+      style: "",
       ...ttsOptions
       // 覆盖默认值
     };
@@ -5314,28 +5290,33 @@ ${text}
       let tempDir = "";
       if (withDubbing) {
         tempDir = await fs.promises.mkdtemp(path.join(electron.app.getPath("temp"), "autodub-tts-"));
-        const tasks = (subtitleData || []).map(async (seg, idx) => {
+        for (let idx = 0; idx < (subtitleData || []).length; idx++) {
+          const seg = subtitleData[idx];
           const text = (seg.text || "").toString().trim();
-          if (!text) return null;
-          const tts = new EdgeTTS_1({
+          if (!text) continue;
+          const tts = new EdgeTTS({
             voice: options.voice,
             lang: options.lang,
             outputFormat: options.outputFormat,
             rate: options.rate,
             pitch: options.pitch,
-            volume: options.volume
+            volume: options.volume,
+            style: options.style
           });
           const audioPath = path.join(tempDir, `seg_${idx}.mp3`);
           try {
+            console.log(`Generating TTS for seg ${idx}: ${text}`);
             await tts.ttsPromise(text, audioPath);
-            return { path: audioPath, start: seg.start };
+            const stat = await fs.promises.stat(audioPath).catch(() => null);
+            if (stat && stat.size > 0) {
+              ttsFiles.push({ path: audioPath, start: seg.start });
+            } else {
+              console.error(`TTS file empty for seg ${idx}`);
+            }
           } catch (e) {
             console.error(`TTS gen failed for seg ${idx}:`, e);
-            return null;
           }
-        });
-        const results = await Promise.all(tasks);
-        ttsFiles = results.filter((r) => r !== null);
+        }
       }
       await new Promise((resolve, reject) => {
         const command = ffmpeg().input(sourceVideoPath);
@@ -5450,15 +5431,17 @@ ${text}
         rate: "+0%",
         pitch: "+0Hz",
         volume: "+0%",
+        style: "",
         ...ttsOptions
       };
-      const tts = new EdgeTTS_1({
+      const tts = new EdgeTTS({
         voice: options.voice,
         lang: options.lang,
         outputFormat: options.outputFormat,
         rate: options.rate,
         pitch: options.pitch,
-        volume: options.volume
+        volume: options.volume,
+        style: options.style
       });
       const now = /* @__PURE__ */ new Date();
       const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}_${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}`;

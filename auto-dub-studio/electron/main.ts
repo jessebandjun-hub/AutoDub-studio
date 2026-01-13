@@ -3,8 +3,7 @@ import path from 'path'
 import fs from 'fs'
 import ffmpeg from 'fluent-ffmpeg'
 import os from 'os'
-// @ts-ignore
-import { EdgeTTS } from 'node-edge-tts'
+import { EdgeTTS } from './lib/edge-tts'
 
 // --- 核心：定位本地 FFmpeg 二进制文件 ---
 // 在开发环境和打包后的生产环境，路径是不一样的。
@@ -116,6 +115,7 @@ app.whenReady().then(() => {
       rate: '+0%',
       pitch: '+0Hz',
       volume: '+0%',
+      style: '',
       ...ttsOptions // 覆盖默认值
     }
 
@@ -181,30 +181,38 @@ app.whenReady().then(() => {
 
       if (withDubbing) {
         tempDir = await fs.promises.mkdtemp(path.join(app.getPath('temp'), 'autodub-tts-'))
-        const tasks = (subtitleData || []).map(async (seg: any, idx: number) => {
-            const text = (seg.text || '').toString().trim()
-            if (!text) return null
-            
-            const tts = new EdgeTTS({
-                voice: options.voice,
-                lang: options.lang,
-                outputFormat: options.outputFormat,
-                rate: options.rate,
-                pitch: options.pitch,
-                volume: options.volume
-            })
-            const audioPath = path.join(tempDir, `seg_${idx}.mp3`)
-            try {
-                await tts.ttsPromise(text, audioPath)
-                return { path: audioPath, start: seg.start }
-            } catch (e) {
-                console.error(`TTS gen failed for seg ${idx}:`, e)
-                return null
-            }
-        })
-        // 并发执行，如果数量大可能需要限制并发
-        const results = await Promise.all(tasks)
-        ttsFiles = results.filter(r => r !== null) as any
+         
+         // 改为顺序执行，避免触发服务端限流
+         for (let idx = 0; idx < (subtitleData || []).length; idx++) {
+             const seg = subtitleData[idx]
+             const text = (seg.text || '').toString().trim()
+             if (!text) continue
+             
+             const tts = new EdgeTTS({
+                  voice: options.voice,
+                  lang: options.lang,
+                  outputFormat: options.outputFormat,
+                  rate: options.rate,
+                  pitch: options.pitch,
+                  volume: options.volume,
+                  style: options.style
+              })
+             const audioPath = path.join(tempDir, `seg_${idx}.mp3`)
+             try {
+                 console.log(`Generating TTS for seg ${idx}: ${text}`)
+                 await tts.ttsPromise(text, audioPath)
+                 
+                 // 验证文件是否生成成功
+                 const stat = await fs.promises.stat(audioPath).catch(() => null)
+                 if (stat && stat.size > 0) {
+                     ttsFiles.push({ path: audioPath, start: seg.start })
+                 } else {
+                     console.error(`TTS file empty for seg ${idx}`)
+                 }
+             } catch (e) {
+                 console.error(`TTS gen failed for seg ${idx}:`, e)
+             }
+         }
       }
 
       await new Promise<void>((resolve, reject) => {
@@ -345,6 +353,7 @@ app.whenReady().then(() => {
         rate: '+0%',
         pitch: '+0Hz',
         volume: '+0%',
+        style: '',
         ...ttsOptions
       }
       const tts = new EdgeTTS({
@@ -353,7 +362,8 @@ app.whenReady().then(() => {
         outputFormat: options.outputFormat,
         rate: options.rate,
         pitch: options.pitch,
-        volume: options.volume
+        volume: options.volume,
+        style: options.style
       })
       
       const now = new Date()

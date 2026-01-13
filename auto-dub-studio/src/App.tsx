@@ -17,7 +17,9 @@ function App() {
   // TTS 配置状态
   const [ttsConfig, setTtsConfig] = useState({
     voice: 'zh-CN-XiaoxiaoNeural',
-    rate: '+0%'
+    rate: '+0%',
+    pitch: '+0Hz',
+    style: ''
   })
 
   // 字幕样式配置
@@ -40,6 +42,27 @@ function App() {
     { value: '-25%', label: '0.75x (慢)' },
     { value: '+0%', label: '1.0x (正常)' },
     { value: '+25%', label: '1.25x (快)' },
+  ]
+
+  const pitchOptions = [
+    { value: '-50Hz', label: '低沉 (-50Hz)' },
+    { value: '-20Hz', label: '略低 (-20Hz)' },
+    { value: '+0Hz', label: '正常' },
+    { value: '+20Hz', label: '略高 (+20Hz)' },
+    { value: '+50Hz', label: '高昂 (+50Hz)' },
+  ]
+
+  const styleOptions = [
+    { value: '', label: '默认 (General)' },
+    { value: 'cheerful', label: '开心 (Cheerful)' },
+    { value: 'excited', label: '兴奋 (Excited)' },
+    { value: 'sad', label: '悲伤 (Sad)' },
+    { value: 'angry', label: '生气 (Angry)' },
+    { value: 'fearful', label: '恐惧 (Fearful)' },
+    { value: 'newscast', label: '新闻 (Newscast)' },
+    { value: 'customerservice', label: '客服 (Customer Service)' },
+    { value: 'assistant', label: '助手 (Assistant)' },
+    { value: 'chat', label: '聊天 (Chat)' },
   ]
 
   const addLog = (msg: string) => setStatusLog(prev => [...prev, `> ${msg}`])
@@ -267,6 +290,28 @@ function App() {
                       onChange={e => setTtsConfig(prev => ({ ...prev, rate: e.target.value }))}
                     >
                       {rateOptions.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    音调：
+                    <select
+                      value={ttsConfig.pitch}
+                      onChange={e => setTtsConfig(prev => ({ ...prev, pitch: e.target.value }))}
+                    >
+                      {pitchOptions.map(opt => (
+                        <option key={opt.value} value={opt.value}>{opt.label}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    情感风格：
+                    <select
+                      value={ttsConfig.style}
+                      onChange={e => setTtsConfig(prev => ({ ...prev, style: e.target.value }))}
+                    >
+                      {styleOptions.map(opt => (
                         <option key={opt.value} value={opt.value}>{opt.label}</option>
                       ))}
                     </select>
