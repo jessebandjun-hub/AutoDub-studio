@@ -1,0 +1,54 @@
+{
+  "name": "auto-dub-studio",
+  "private": true,
+  "version": "0.0.1",
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build && electron-builder",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "fluent-ffmpeg": "^2.1.2",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.66",
+    "@types/react-dom": "^18.2.22",
+    "@vitejs/plugin-react": "^4.2.1",
+    "electron": "^30.0.0",
+    "electron-builder": "^24.13.3",
+    "rimraf": "^5.0.5",
+    "typescript": "^5.2.2",
+    "vite": "^5.2.0",
+    "vite-plugin-electron": "^0.28.4"
+  },
+  "build": {
+    "appId": "com.autodub.studio",
+    "productName": "AutoDub Studio",
+    "directories": {
+      "output": "release/${version}"
+    },
+    "files": [
+      "dist-electron/**/*",
+      "dist/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/",
+        "to": "resources/",
+        "filter": ["**/*"]
+      }
+    ],
+    "win": {
+      "target": ["nsis"]
+    },
+    "mac": {
+      "target": ["dmg"]
+    },
+    "linux": {
+      "target": ["AppImage"]
+    }
+  }
+}
