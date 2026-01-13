@@ -99,6 +99,27 @@ function App() {
     }
   }
 
+  const handleTtsGenerate = async () => {
+    if (segments.length === 0) {
+      addLog('没有可用的字幕片段。')
+      return
+    }
+    const fullText = segments.map(seg => seg.text).join('，') // 使用逗号连接，停顿更自然
+    addLog('正在调用 Edge TTS 生成音频...')
+    try {
+      const result = await window.electronAPI.generateAudio(fullText)
+      if (result.status === 'success') {
+        addLog(`TTS 音频生成成功！路径：${result.outputPath}`)
+      } else if (result.status === 'canceled') {
+        addLog('用户取消 TTS 生成。')
+      } else if (result.status === 'error') {
+        addLog(`TTS 生成失败：${result.message}`)
+      }
+    } catch (error) {
+      addLog('TTS 生成出错。')
+    }
+  }
+
   return (
     <div className="container">
 
@@ -200,6 +221,9 @@ function App() {
               </button>
               <button className="export-btn" onClick={handleExportSrt} disabled={isExporting} style={{ marginLeft: 10 }}>
                   导出 SRT 字幕文件
+              </button>
+              <button className="export-btn" onClick={handleTtsGenerate} disabled={isExporting} style={{ marginLeft: 10, backgroundColor: '#0078d4' }}>
+                  字幕转音频 (Edge TTS)
               </button>
             </div>
           )}

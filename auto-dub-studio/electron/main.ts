@@ -3,6 +3,8 @@ import path from 'path'
 import fs from 'fs'
 import ffmpeg from 'fluent-ffmpeg'
 import os from 'os'
+// @ts-ignore
+import { EdgeTTS } from 'node-edge-tts'
 
 // --- 核心：定位本地 FFmpeg 二进制文件 ---
 // 在开发环境和打包后的生产环境，路径是不一样的。
@@ -211,12 +213,41 @@ app.whenReady().then(() => {
         const text = (seg.text ?? '').toString().replace(/\r?\n/g, ' ')
         return `${id}\n${start} --> ${end}\n${text}\n`
       }).join('\n')
-
       await fs.promises.writeFile(savePath, srtContent, 'utf-8')
       shell.showItemInFolder(savePath)
       return { status: 'success', outputPath: savePath }
     } catch (e: any) {
       return { status: 'error', message: e?.message || '导出 SRT 失败' }
+    }
+  })
+
+  // 5. 监听：TTS 字幕转音频
+  ipcMain.handle('tts:generate', async (_event, text) => {
+    try {
+      const tts = new EdgeTTS({
+        voice: 'zh-CN-XiaoxiaoNeural',
+        lang: 'zh-CN',
+        outputFormat: 'audio-24khz-48kbitrate-mono-mp3'
+      })
+      
+      const now = new Date()
+      const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`
+      const defaultFilename = `tts_audio_${timestamp}.mp3`
+      
+      const { canceled, filePath: savePath } = await dialog.showSaveDialog(win!, {
+        title: '保存 TTS 音频',
+        defaultPath: defaultFilename,
+        filters: [{ name: 'MP3 音频', extensions: ['mp3'] }]
+      })
+
+      if (canceled || !savePath) return { status: 'canceled' }
+
+      await tts.ttsPromise(text, savePath)
+      shell.showItemInFolder(savePath)
+      return { status: 'success', outputPath: savePath }
+    } catch (e: any) {
+      console.error(e)
+      return { status: 'error', message: e?.message || 'TTS 生成失败' }
     }
   })
 

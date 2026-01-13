@@ -9,9 +9,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "bufferutil": "^4.1.0",
     "fluent-ffmpeg": "^2.1.2",
+    "node-edge-tts": "^1.2.8",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "utf-8-validate": "^6.0.6"
   },
   "devDependencies": {
     "@types/react": "^18.2.66",
@@ -38,17 +41,25 @@
       {
         "from": "resources/",
         "to": "resources/",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       }
     ],
     "win": {
-      "target": ["nsis"]
+      "target": [
+        "nsis"
+      ]
     },
     "mac": {
-      "target": ["dmg"]
+      "target": [
+        "dmg"
+      ]
     },
     "linux": {
-      "target": ["AppImage"]
+      "target": [
+        "AppImage"
+      ]
     }
   }
 }
