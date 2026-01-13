@@ -107,9 +107,14 @@ app.whenReady().then(() => {
   // 3. 监听：导出成品视频
   ipcMain.handle('video:export', async (_event, { sourceVideoPath, subtitleData }) => {
     // 3.1 弹出保存对话框，让用户选择保存位置
+    // 生成带时间戳的文件名：dubbed_output_20231027_143005.mp4
+    const now = new Date()
+    const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`
+    const defaultFilename = `dubbed_output_${timestamp}.mp4`
+
     const { canceled, filePath: savePath } = await dialog.showSaveDialog(win!, {
         title: '导出配音视频',
-        defaultPath: 'dubbed_output.mp4',
+        defaultPath: defaultFilename,
         filters: [{ name: 'MP4 视频', extensions: ['mp4'] }]
     })
 
@@ -150,10 +155,15 @@ app.whenReady().then(() => {
       // 3. 包裹在单引号中以处理空格
       const normalizedSrt = tmpSrt.replace(/\\/g, '/').replace(/:/g, '\\:')
       
+      // 自定义字幕样式：微软雅黑，字号24，白字黑边，无背景框
+      // BorderStyle=1 (普通描边), Outline=1 (描边宽度), Shadow=0 (无阴影)
+      const subtitleStyle = "Fontname=Microsoft YaHei,FontSize=24,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=1,Shadow=0,MarginV=20"
+
       await new Promise<void>((resolve, reject) => {
         ffmpeg()
           .input(sourceVideoPath)
-          .videoFilters(`subtitles='${normalizedSrt}'`)
+          // 添加 force_style 参数来美化字幕
+          .videoFilters(`subtitles='${normalizedSrt}':force_style='${subtitleStyle}'`)
           .outputOptions(['-c:a', 'copy'])
           .save(savePath)
           .on('start', (commandLine) => console.log('Spawned Ffmpeg with command: ' + commandLine))
@@ -164,6 +174,49 @@ app.whenReady().then(() => {
       return { status: 'success', outputPath: savePath }
     } catch (e: any) {
       return { status: 'error', message: e?.message || '导出失败' }
+    }
+  })
+
+  // 4. 监听：仅导出 SRT 字幕文件
+  ipcMain.handle('srt:export', async (_event, subtitleData) => {
+    // 生成带时间戳的文件名：subtitle_20231027_143005.srt
+    const now = new Date()
+    const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`
+    const defaultFilename = `subtitle_${timestamp}.srt`
+
+    const { canceled, filePath: savePath } = await dialog.showSaveDialog(win!, {
+      title: '导出字幕文件',
+      defaultPath: defaultFilename,
+      filters: [{ name: 'SRT 字幕', extensions: ['srt'] }]
+    })
+
+    if (canceled || !savePath) return { status: 'canceled' }
+
+    try {
+      // 简单的 SRT 时间格式化函数 (复用逻辑)
+      const toTime = (sec: number) => {
+        const ms = Math.max(0, Math.round(sec * 1000))
+        const h = Math.floor(ms / 3600000)
+        const m = Math.floor((ms % 3600000) / 60000)
+        const s = Math.floor((ms % 60000) / 1000)
+        const mm = ms % 1000
+        const pad = (n: number, len = 2) => n.toString().padStart(len, '0')
+        return `${pad(h)}:${pad(m)}:${pad(s)},${pad(mm, 3)}`
+      }
+
+      const srtContent = (subtitleData || []).map((seg: any, idx: number) => {
+        const id = seg.id ?? idx + 1
+        const start = toTime(seg.start ?? 0)
+        const end = toTime(seg.end ?? 0)
+        const text = (seg.text ?? '').toString().replace(/\r?\n/g, ' ')
+        return `${id}\n${start} --> ${end}\n${text}\n`
+      }).join('\n')
+
+      await fs.promises.writeFile(savePath, srtContent, 'utf-8')
+      shell.showItemInFolder(savePath)
+      return { status: 'success', outputPath: savePath }
+    } catch (e: any) {
+      return { status: 'error', message: e?.message || '导出 SRT 失败' }
     }
   })
 

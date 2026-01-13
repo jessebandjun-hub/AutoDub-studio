@@ -82,10 +82,26 @@ function App() {
     }
   }
 
+  // 4. 导出 SRT
+  const handleExportSrt = async () => {
+    if (segments.length === 0) return
+    try {
+      const result = await window.electronAPI.exportSrt(segments)
+      if (result.status === 'success') {
+        addLog(`SRT 导出成功！路径：${result.outputPath}`)
+      } else if (result.status === 'canceled') {
+        addLog('用户取消导出 SRT。')
+      } else if (result.status === 'error') {
+        addLog(`导出 SRT 失败：${result.message}`)
+      }
+    } catch (error) {
+      addLog('导出 SRT 过程中出错。')
+    }
+  }
+
   return (
     <div className="container">
-      <h1>AutoDub Studio</h1>
-      
+
       <div className="card">
         {videoPath ? (
           <>
@@ -99,105 +115,94 @@ function App() {
       </div>
 
       {videoPath && (
-        <div className="card">
-           <button onClick={handleProcess} disabled={isProcessing || segments.length > 0}>
-            {isProcessing ? '处理中...' : '开始 AI 分析（模拟）'}
-          </button>
-        </div>
-      )}
-
-      {segments.length > 0 && (
         <div className="timeline-mock">
-          <h3>字幕时间线预览：</h3>
+          <h3>字幕编辑：</h3>
           <div className="card action-card">
-            <button onClick={() => setEditing(e => !e)}>
-              {editing ? '完成编辑' : '编辑字幕'}
+            <button
+              onClick={() => {
+                const t = videoRef.current?.currentTime ?? 0
+                const nextId = (segments.reduce((m, s) => Math.max(m, s.id), 0) || 0) + 1
+                const newSeg: SubtitleSegment = { id: nextId, start: parseFloat(t.toFixed(2)), end: parseFloat((t + 2).toFixed(2)), text: '新字幕片段' }
+                setSegments(prev => [...prev, newSeg])
+                // 自动开启编辑模式
+                setEditing(true)
+              }}
+            >
+              + 添加字幕片段 (在当前时间)
             </button>
-            {editing && (
-              <button
-                style={{ marginLeft: 8 }}
-                onClick={() => {
-                  const t = videoRef.current?.currentTime ?? 0
-                  const nextId = (segments.reduce((m, s) => Math.max(m, s.id), 0) || 0) + 1
-                  const newSeg: SubtitleSegment = { id: nextId, start: parseFloat(t.toFixed(2)), end: parseFloat((t + 1).toFixed(2)), text: '' }
-                  setSegments(prev => [...prev, newSeg])
-                }}
-              >
-                添加片段
-              </button>
-            )}
           </div>
-          <ul>
-            {segments.map(seg => (
-              <li key={seg.id}>[{seg.start}s - {seg.end}s]: {seg.text}</li>
+
+          <div className="editor">
+            {segments.length === 0 && <p style={{ color: '#888' }}>暂无字幕，请点击上方按钮添加。</p>}
+            {segments.map((seg, idx) => (
+              <div className="editor-row" key={seg.id}>
+                <span className="editor-id">#{seg.id}</span>
+                <input
+                  className="editor-num"
+                  type="number"
+                  step="0.01"
+                  value={seg.start}
+                  onChange={e => {
+                    const v = parseFloat(e.target.value)
+                    setSegments(prev => prev.map(s => (s.id === seg.id ? { ...s, start: isNaN(v) ? 0 : v } : s)))
+                  }}
+                />
+                <input
+                  className="editor-num"
+                  type="number"
+                  step="0.01"
+                  value={seg.end}
+                  onChange={e => {
+                    const v = parseFloat(e.target.value)
+                    setSegments(prev => prev.map(s => (s.id === seg.id ? { ...s, end: isNaN(v) ? 0 : v } : s)))
+                  }}
+                />
+                <input
+                  className="editor-text"
+                  type="text"
+                  value={seg.text}
+                  onChange={e => {
+                    const v = e.target.value
+                    setSegments(prev => prev.map(s => (s.id === seg.id ? { ...s, text: v } : s)))
+                  }}
+                />
+                <button
+                  onClick={() => {
+                    const t = videoRef.current?.currentTime ?? 0
+                    setSegments(prev => prev.map(s => (s.id === seg.id ? { ...s, start: parseFloat(t.toFixed(2)) } : s)))
+                  }}
+                >
+                  设为当前开始
+                </button>
+                <button
+                  onClick={() => {
+                    const t = videoRef.current?.currentTime ?? 0
+                    setSegments(prev => prev.map(s => (s.id === seg.id ? { ...s, end: parseFloat(t.toFixed(2)) } : s)))
+                  }}
+                >
+                  设为当前结束
+                </button>
+                <button
+                  onClick={() => {
+                    setSegments(prev => prev.filter(s => s.id !== seg.id))
+                  }}
+                >
+                  删除
+                </button>
+              </div>
             ))}
-          </ul>
-          {editing && (
-            <div className="editor">
-              {segments.map((seg, idx) => (
-                <div className="editor-row" key={seg.id}>
-                  <span className="editor-id">#{seg.id}</span>
-                  <input
-                    className="editor-num"
-                    type="number"
-                    step="0.01"
-                    value={seg.start}
-                    onChange={e => {
-                      const v = parseFloat(e.target.value)
-                      setSegments(prev => prev.map(s => (s.id === seg.id ? { ...s, start: isNaN(v) ? 0 : v } : s)))
-                    }}
-                  />
-                  <input
-                    className="editor-num"
-                    type="number"
-                    step="0.01"
-                    value={seg.end}
-                    onChange={e => {
-                      const v = parseFloat(e.target.value)
-                      setSegments(prev => prev.map(s => (s.id === seg.id ? { ...s, end: isNaN(v) ? 0 : v } : s)))
-                    }}
-                  />
-                  <input
-                    className="editor-text"
-                    type="text"
-                    value={seg.text}
-                    onChange={e => {
-                      const v = e.target.value
-                      setSegments(prev => prev.map(s => (s.id === seg.id ? { ...s, text: v } : s)))
-                    }}
-                  />
-                  <button
-                    onClick={() => {
-                      const t = videoRef.current?.currentTime ?? 0
-                      setSegments(prev => prev.map(s => (s.id === seg.id ? { ...s, start: parseFloat(t.toFixed(2)) } : s)))
-                    }}
-                  >
-                    设为当前开始
-                  </button>
-                  <button
-                    onClick={() => {
-                      const t = videoRef.current?.currentTime ?? 0
-                      setSegments(prev => prev.map(s => (s.id === seg.id ? { ...s, end: parseFloat(t.toFixed(2)) } : s)))
-                    }}
-                  >
-                    设为当前结束
-                  </button>
-                  <button
-                    onClick={() => {
-                      setSegments(prev => prev.filter(s => s.id !== seg.id))
-                    }}
-                  >
-                    删除
-                  </button>
-                </div>
-              ))}
+          </div>
+
+          {segments.length > 0 && (
+            <div className="card action-card">
+              <button className="export-btn" onClick={handleExport} disabled={isExporting}>
+                  {isExporting ? '导出中...' : '导出视频（烧录字幕）'}
+              </button>
+              <button className="export-btn" onClick={handleExportSrt} disabled={isExporting} style={{ marginLeft: 10 }}>
+                  导出 SRT 字幕文件
+              </button>
             </div>
           )}
-          <div className="card action-card">
-            <button className="export-btn" onClick={handleExport} disabled={isExporting}>
-                {isExporting ? '导出中...' : '导出视频（烧录字幕）'}
-            </button>
-          </div>
         </div>
       )}
 

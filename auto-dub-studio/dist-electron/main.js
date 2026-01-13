@@ -73,9 +73,12 @@ electron.app.whenReady().then(() => {
     };
   });
   electron.ipcMain.handle("video:export", async (_event, { sourceVideoPath, subtitleData }) => {
+    const now = /* @__PURE__ */ new Date();
+    const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}_${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}`;
+    const defaultFilename = `dubbed_output_${timestamp}.mp4`;
     const { canceled, filePath: savePath } = await electron.dialog.showSaveDialog(win, {
       title: "导出配音视频",
-      defaultPath: "dubbed_output.mp4",
+      defaultPath: defaultFilename,
       filters: [{ name: "MP4 视频", extensions: ["mp4"] }]
     });
     if (canceled || !savePath) return { status: "canceled" };
@@ -109,13 +112,51 @@ ${text}
       const tmpSrt = path.join(electron.app.getPath("temp"), `autodub_${Date.now()}.srt`);
       await fs.promises.writeFile(tmpSrt, srt, "utf-8");
       const normalizedSrt = tmpSrt.replace(/\\/g, "/").replace(/:/g, "\\:");
+      const subtitleStyle = "Fontname=Microsoft YaHei,FontSize=24,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=1,Shadow=0,MarginV=20";
       await new Promise((resolve, reject) => {
-        ffmpeg().input(sourceVideoPath).videoFilters(`subtitles='${normalizedSrt}'`).outputOptions(["-c:a", "copy"]).save(savePath).on("start", (commandLine) => console.log("Spawned Ffmpeg with command: " + commandLine)).on("end", () => resolve()).on("error", (err) => reject(err));
+        ffmpeg().input(sourceVideoPath).videoFilters(`subtitles='${normalizedSrt}':force_style='${subtitleStyle}'`).outputOptions(["-c:a", "copy"]).save(savePath).on("start", (commandLine) => console.log("Spawned Ffmpeg with command: " + commandLine)).on("end", () => resolve()).on("error", (err) => reject(err));
       });
       electron.shell.showItemInFolder(savePath);
       return { status: "success", outputPath: savePath };
     } catch (e) {
       return { status: "error", message: (e == null ? void 0 : e.message) || "导出失败" };
+    }
+  });
+  electron.ipcMain.handle("srt:export", async (_event, subtitleData) => {
+    const now = /* @__PURE__ */ new Date();
+    const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}_${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}`;
+    const defaultFilename = `subtitle_${timestamp}.srt`;
+    const { canceled, filePath: savePath } = await electron.dialog.showSaveDialog(win, {
+      title: "导出字幕文件",
+      defaultPath: defaultFilename,
+      filters: [{ name: "SRT 字幕", extensions: ["srt"] }]
+    });
+    if (canceled || !savePath) return { status: "canceled" };
+    try {
+      const toTime = (sec) => {
+        const ms = Math.max(0, Math.round(sec * 1e3));
+        const h = Math.floor(ms / 36e5);
+        const m = Math.floor(ms % 36e5 / 6e4);
+        const s = Math.floor(ms % 6e4 / 1e3);
+        const mm = ms % 1e3;
+        const pad = (n, len = 2) => n.toString().padStart(len, "0");
+        return `${pad(h)}:${pad(m)}:${pad(s)},${pad(mm, 3)}`;
+      };
+      const srtContent = (subtitleData || []).map((seg, idx) => {
+        const id = seg.id ?? idx + 1;
+        const start = toTime(seg.start ?? 0);
+        const end = toTime(seg.end ?? 0);
+        const text = (seg.text ?? "").toString().replace(/\r?\n/g, " ");
+        return `${id}
+${start} --> ${end}
+${text}
+`;
+      }).join("\n");
+      await fs.promises.writeFile(savePath, srtContent, "utf-8");
+      electron.shell.showItemInFolder(savePath);
+      return { status: "success", outputPath: savePath };
+    } catch (e) {
+      return { status: "error", message: (e == null ? void 0 : e.message) || "导出 SRT 失败" };
     }
   });
 });

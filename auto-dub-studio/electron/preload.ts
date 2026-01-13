@@ -5,6 +5,7 @@ export interface IElectronAPI {
   openFileDialog: () => Promise<string | null>,
   processVideo: (filePath: string) => Promise<any>,
   exportVideo: (sourceVideoPath: string, subtitleData: any[]) => Promise<any>,
+  exportSrt: (subtitleData: any[]) => Promise<any>,
   checkFFmpeg: () => Promise<{ exists: boolean; path: string }>,
 }
 
@@ -13,6 +14,7 @@ const electronHandler: IElectronAPI = {
   openFileDialog: () => ipcRenderer.invoke('dialog:openFile'),
   processVideo: (filePath) => ipcRenderer.invoke('video:process', filePath),
   exportVideo: (sourceVideoPath, subtitleData) => ipcRenderer.invoke('video:export', { sourceVideoPath, subtitleData }),
+  exportSrt: (subtitleData) => ipcRenderer.invoke('srt:export', subtitleData),
   checkFFmpeg: () => ipcRenderer.invoke('ffmpeg:status'),
 }
 
