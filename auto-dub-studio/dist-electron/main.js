@@ -5310,36 +5310,92 @@ ${text}
       await fs.promises.writeFile(tmpSrt, srt, "utf-8");
       const normalizedSrt = tmpSrt.replace(/\\/g, "/").replace(/:/g, "\\:");
       const subtitleStyle = `Fontname=Microsoft YaHei,FontSize=${fontSize},PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=1,Shadow=0,MarginV=20`;
-      let ttsAudioPath = "";
+      let ttsFiles = [];
+      let tempDir = "";
       if (withDubbing) {
-        const fullText = (subtitleData || []).map((s) => s.text).join("，");
-        const tts = new EdgeTTS_1({
-          voice: options.voice,
-          lang: options.lang,
-          outputFormat: options.outputFormat,
-          rate: options.rate,
-          pitch: options.pitch,
-          volume: options.volume
+        tempDir = await fs.promises.mkdtemp(path.join(electron.app.getPath("temp"), "autodub-tts-"));
+        const tasks = (subtitleData || []).map(async (seg, idx) => {
+          const text = (seg.text || "").toString().trim();
+          if (!text) return null;
+          const tts = new EdgeTTS_1({
+            voice: options.voice,
+            lang: options.lang,
+            outputFormat: options.outputFormat,
+            rate: options.rate,
+            pitch: options.pitch,
+            volume: options.volume
+          });
+          const audioPath = path.join(tempDir, `seg_${idx}.mp3`);
+          try {
+            await tts.ttsPromise(text, audioPath);
+            return { path: audioPath, start: seg.start };
+          } catch (e) {
+            console.error(`TTS gen failed for seg ${idx}:`, e);
+            return null;
+          }
         });
-        ttsAudioPath = path.join(electron.app.getPath("temp"), `tts_temp_${Date.now()}.mp3`);
-        await tts.ttsPromise(fullText, ttsAudioPath);
+        const results = await Promise.all(tasks);
+        ttsFiles = results.filter((r) => r !== null);
       }
       await new Promise((resolve, reject) => {
         const command = ffmpeg().input(sourceVideoPath);
-        if (withDubbing && ttsAudioPath) {
-          command.input(ttsAudioPath);
+        if (withDubbing && ttsFiles.length > 0) {
+          ttsFiles.forEach((f) => command.input(f.path));
+          const filterComplex = [];
+          const amixInputs = [];
+          ttsFiles.forEach((f, i) => {
+            const inputIdx = i + 1;
+            const delay = Math.round((f.start || 0) * 1e3);
+            const outLabel = `delayed${i}`;
+            filterComplex.push({
+              filter: "adelay",
+              options: `${delay}|${delay}`,
+              inputs: `${inputIdx}:a`,
+              outputs: outLabel
+            });
+            amixInputs.push(outLabel);
+          });
+          const count = amixInputs.length;
+          filterComplex.push({
+            filter: "amix",
+            options: { inputs: count, dropout_transition: 0 },
+            inputs: amixInputs,
+            outputs: "amixed"
+          });
+          filterComplex.push({
+            filter: "volume",
+            options: count.toString(),
+            inputs: "amixed",
+            outputs: "aout"
+          });
+          command.complexFilter(filterComplex);
           command.outputOptions([
             "-map 0:v",
-            "-map 1:a",
+            "-map [aout]",
             "-c:v libx264",
             "-c:a aac",
             "-shortest"
-            // 确保输出长度不超过视频或音频的最短者
           ]);
         } else {
           command.outputOptions(["-c:a", "copy"]);
         }
-        command.videoFilters(`subtitles='${normalizedSrt}':force_style='${subtitleStyle}'`).save(savePath).on("start", (commandLine) => console.log("Spawned Ffmpeg with command: " + commandLine)).on("end", () => resolve()).on("error", (err) => reject(err));
+        command.videoFilters(`subtitles='${normalizedSrt}':force_style='${subtitleStyle}'`).save(savePath).on("start", (commandLine) => console.log("Spawned Ffmpeg with command: " + commandLine)).on("end", async () => {
+          if (tempDir) {
+            try {
+              await fs.promises.rm(tempDir, { recursive: true, force: true });
+            } catch {
+            }
+          }
+          resolve();
+        }).on("error", async (err) => {
+          if (tempDir) {
+            try {
+              await fs.promises.rm(tempDir, { recursive: true, force: true });
+            } catch {
+            }
+          }
+          reject(err);
+        });
       });
       electron.shell.showItemInFolder(savePath);
       return { status: "success", outputPath: savePath };

@@ -175,39 +175,91 @@ app.whenReady().then(() => {
       // BorderStyle=1 (普通描边), Outline=1 (描边宽度), Shadow=0 (无阴影)
       const subtitleStyle = `Fontname=Microsoft YaHei,FontSize=${fontSize},PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=1,Shadow=0,MarginV=20`
 
-      // 如果需要配音，先生成 TTS 音频文件
-      let ttsAudioPath = ''
+      // 如果需要配音，先生成 TTS 音频文件 (按片段生成以精确对齐)
+      let ttsFiles: { path: string, start: number }[] = []
+      let tempDir = ''
+
       if (withDubbing) {
-        const fullText = (subtitleData || []).map((s: any) => s.text).join('，')
-        const tts = new EdgeTTS({
-            voice: options.voice,
-            lang: options.lang,
-            outputFormat: options.outputFormat,
-            rate: options.rate,
-            pitch: options.pitch,
-            volume: options.volume
+        tempDir = await fs.promises.mkdtemp(path.join(app.getPath('temp'), 'autodub-tts-'))
+        const tasks = (subtitleData || []).map(async (seg: any, idx: number) => {
+            const text = (seg.text || '').toString().trim()
+            if (!text) return null
+            
+            const tts = new EdgeTTS({
+                voice: options.voice,
+                lang: options.lang,
+                outputFormat: options.outputFormat,
+                rate: options.rate,
+                pitch: options.pitch,
+                volume: options.volume
+            })
+            const audioPath = path.join(tempDir, `seg_${idx}.mp3`)
+            try {
+                await tts.ttsPromise(text, audioPath)
+                return { path: audioPath, start: seg.start }
+            } catch (e) {
+                console.error(`TTS gen failed for seg ${idx}:`, e)
+                return null
+            }
         })
-        ttsAudioPath = path.join(app.getPath('temp'), `tts_temp_${Date.now()}.mp3`)
-        await tts.ttsPromise(fullText, ttsAudioPath)
+        // 并发执行，如果数量大可能需要限制并发
+        const results = await Promise.all(tasks)
+        ttsFiles = results.filter(r => r !== null) as any
       }
 
       await new Promise<void>((resolve, reject) => {
         const command = ffmpeg().input(sourceVideoPath)
         
-        if (withDubbing && ttsAudioPath) {
-            command.input(ttsAudioPath)
-            // 映射原视频的视频流 (0:v) 和 TTS 的音频流 (1:a)
-            // -c:v libx264 重新编码视频以烧录字幕
-            // -c:a aac 编码音频
-            // -shortest 以最短的流为准（防止音频过长），但通常我们希望视频完整。
-            // 这里的策略是：视频多长就多长，音频不够就没声音，音频多了就截断。
-            // 使用 -map 0:v -map 1:a 即可。
+        if (withDubbing && ttsFiles.length > 0) {
+            // 添加所有 TTS 片段作为输入
+            ttsFiles.forEach(f => command.input(f.path))
+            
+            // 构建复杂滤镜
+            const filterComplex: any[] = []
+            const amixInputs: string[] = []
+            
+            ttsFiles.forEach((f, i) => {
+                const inputIdx = i + 1 // 0 是视频
+                const delay = Math.round((f.start || 0) * 1000)
+                const outLabel = `delayed${i}`
+                
+                // adelay: 延迟音频 (单位毫秒)
+                // 使用 delay|delay 确保立体声通道都被延迟
+                filterComplex.push({
+                    filter: 'adelay',
+                    options: `${delay}|${delay}`,
+                    inputs: `${inputIdx}:a`,
+                    outputs: outLabel
+                })
+                amixInputs.push(outLabel)
+            })
+            
+            // 混合所有音频
+            // amix 默认会衰减音量 (1/N)，需要补偿
+            const count = amixInputs.length
+            filterComplex.push({
+                filter: 'amix',
+                options: { inputs: count, dropout_transition: 0 },
+                inputs: amixInputs,
+                outputs: 'amixed'
+            })
+            
+            // 音量补偿: 简单乘以 N
+            filterComplex.push({
+                filter: 'volume',
+                options: count.toString(),
+                inputs: 'amixed',
+                outputs: 'aout'
+            })
+            
+            command.complexFilter(filterComplex)
+            
             command.outputOptions([
                 '-map 0:v', 
-                '-map 1:a', 
+                '-map [aout]', 
                 '-c:v libx264', 
                 '-c:a aac',
-                '-shortest' // 确保输出长度不超过视频或音频的最短者
+                '-shortest'
             ])
         } else {
             // 原逻辑：复制音频
@@ -219,8 +271,19 @@ app.whenReady().then(() => {
           .videoFilters(`subtitles='${normalizedSrt}':force_style='${subtitleStyle}'`)
           .save(savePath)
           .on('start', (commandLine) => console.log('Spawned Ffmpeg with command: ' + commandLine))
-          .on('end', () => resolve())
-          .on('error', (err) => reject(err))
+          .on('end', async () => {
+              // 清理临时文件
+              if (tempDir) {
+                  try { await fs.promises.rm(tempDir, { recursive: true, force: true }) } catch {}
+              }
+              resolve()
+          })
+          .on('error', async (err) => {
+              if (tempDir) {
+                  try { await fs.promises.rm(tempDir, { recursive: true, force: true }) } catch {}
+              }
+              reject(err)
+          })
       })
       shell.showItemInFolder(savePath)
       return { status: 'success', outputPath: savePath }
