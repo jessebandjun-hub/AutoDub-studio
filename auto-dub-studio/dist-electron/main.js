@@ -5258,7 +5258,7 @@ electron.app.whenReady().then(() => {
       ]
     };
   });
-  electron.ipcMain.handle("video:export", async (_event, { sourceVideoPath, subtitleData, withDubbing, ttsOptions }) => {
+  electron.ipcMain.handle("video:export", async (_event, { sourceVideoPath, subtitleData, withDubbing, ttsOptions, subtitleStyle: styleOptions }) => {
     const options = {
       voice: "zh-CN-XiaoxiaoNeural",
       lang: "zh-CN",
@@ -5269,6 +5269,7 @@ electron.app.whenReady().then(() => {
       ...ttsOptions
       // 覆盖默认值
     };
+    const fontSize = (styleOptions == null ? void 0 : styleOptions.fontSize) || 24;
     const now = /* @__PURE__ */ new Date();
     const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}_${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}`;
     const defaultFilename = `dubbed_output_${timestamp}.mp4`;
@@ -5308,7 +5309,7 @@ ${text}
       const tmpSrt = path.join(electron.app.getPath("temp"), `autodub_${Date.now()}.srt`);
       await fs.promises.writeFile(tmpSrt, srt, "utf-8");
       const normalizedSrt = tmpSrt.replace(/\\/g, "/").replace(/:/g, "\\:");
-      const subtitleStyle = "Fontname=Microsoft YaHei,FontSize=24,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=1,Shadow=0,MarginV=20";
+      const subtitleStyle = `Fontname=Microsoft YaHei,FontSize=${fontSize},PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=1,Shadow=0,MarginV=20`;
       let ttsAudioPath = "";
       if (withDubbing) {
         const fullText = (subtitleData || []).map((s) => s.text).join("，");

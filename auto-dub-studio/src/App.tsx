@@ -20,6 +20,9 @@ function App() {
     rate: '+0%'
   })
 
+  // 字幕样式配置
+  const [fontSize, setFontSize] = useState(24)
+
   // 常用语音列表
   const voiceOptions = [
     { value: 'zh-CN-XiaoxiaoNeural', label: '晓晓 (女声 - 温暖 - 默认)' },
@@ -90,8 +93,8 @@ function App() {
     addLog(`开始导出${logPrefix}... 请先选择保存位置。`)
 
     try {
-      // 调用主进程进行导出，传入原视频路径和当前的字幕数据，以及 TTS 配置
-      const result = await window.electronAPI.exportVideo(videoPath, segments, withDubbing, ttsConfig)
+      // 调用主进程进行导出，传入原视频路径和当前的字幕数据，以及 TTS 配置和字幕样式
+      const result = await window.electronAPI.exportVideo(videoPath, segments, withDubbing, ttsConfig, { fontSize })
       if (result.status === 'success') {
         addLog(`${logPrefix}导出成功！保存路径：${result.outputPath}`)
       } else if (result.status === 'copied') {
@@ -243,14 +246,13 @@ function App() {
           {segments.length > 0 && (
             <>
               <div className="card" style={{ marginBottom: 15 }}>
-                <h3>配音设置：</h3>
+                <h3>导出设置：</h3>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                   <label>
-                    角色：
+                    配音角色：
                     <select
                       value={ttsConfig.voice}
                       onChange={e => setTtsConfig(prev => ({ ...prev, voice: e.target.value }))}
-                      style={{ padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
                     >
                       {voiceOptions.map(opt => (
                         <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -262,20 +264,30 @@ function App() {
                     <select
                       value={ttsConfig.rate}
                       onChange={e => setTtsConfig(prev => ({ ...prev, rate: e.target.value }))}
-                      style={{ padding: '5px', borderRadius: '4px', border: '1px solid #ccc' }}
                     >
                       {rateOptions.map(opt => (
                         <option key={opt.value} value={opt.value}>{opt.label}</option>
                       ))}
                     </select>
                   </label>
+                  <label>
+                    字幕大小：
+                    <input
+                      type="number"
+                      value={fontSize}
+                      onChange={e => setFontSize(Number(e.target.value))}
+                      style={{ width: '60px' }}
+                      min="10"
+                      max="100"
+                    />
+                  </label>
                 </div>
               </div>
 
               <div className="card action-card">
-                <button className="export-btn" onClick={() => handleExport(false)} disabled={isExporting}>
+                {/* <button className="export-btn" onClick={() => handleExport(false)} disabled={isExporting}>
                     {isExporting ? '导出中...' : '导出视频（烧录字幕）'}
-                </button>
+                </button> */}
                 <button className="export-btn" onClick={() => handleExport(true)} disabled={isExporting} style={{ marginLeft: 10, backgroundColor: '#8a2be2' }}>
                     导出配音视频 (TTS+字幕)
                 </button>

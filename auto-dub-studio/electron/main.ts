@@ -107,7 +107,7 @@ app.whenReady().then(() => {
   })
 
   // 3. 监听：导出成品视频
-  ipcMain.handle('video:export', async (_event, { sourceVideoPath, subtitleData, withDubbing, ttsOptions }) => {
+  ipcMain.handle('video:export', async (_event, { sourceVideoPath, subtitleData, withDubbing, ttsOptions, subtitleStyle: styleOptions }) => {
     // 默认 TTS 选项
     const options = {
       voice: 'zh-CN-XiaoxiaoNeural',
@@ -119,6 +119,9 @@ app.whenReady().then(() => {
       ...ttsOptions // 覆盖默认值
     }
 
+    // 字幕样式配置
+    const fontSize = styleOptions?.fontSize || 24
+    
     // 3.1 弹出保存对话框，让用户选择保存位置
     // 生成带时间戳的文件名：dubbed_output_20231027_143005.mp4
     const now = new Date()
@@ -168,9 +171,9 @@ app.whenReady().then(() => {
       // 3. 包裹在单引号中以处理空格
       const normalizedSrt = tmpSrt.replace(/\\/g, '/').replace(/:/g, '\\:')
       
-      // 自定义字幕样式：微软雅黑，字号24，白字黑边，无背景框
+      // 自定义字幕样式：微软雅黑，字号动态，白字黑边，无背景框
       // BorderStyle=1 (普通描边), Outline=1 (描边宽度), Shadow=0 (无阴影)
-      const subtitleStyle = "Fontname=Microsoft YaHei,FontSize=24,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=1,Shadow=0,MarginV=20"
+      const subtitleStyle = `Fontname=Microsoft YaHei,FontSize=${fontSize},PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,BorderStyle=1,Outline=1,Shadow=0,MarginV=20`
 
       // 如果需要配音，先生成 TTS 音频文件
       let ttsAudioPath = ''

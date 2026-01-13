@@ -4,7 +4,7 @@ import { contextBridge, ipcRenderer } from 'electron'
 export interface IElectronAPI {
   openFileDialog: () => Promise<string | null>,
   processVideo: (filePath: string) => Promise<any>,
-  exportVideo: (sourceVideoPath: string, subtitleData: any[], withDubbing?: boolean, ttsOptions?: any) => Promise<any>,
+  exportVideo: (sourceVideoPath: string, subtitleData: any[], withDubbing?: boolean, ttsOptions?: any, subtitleStyle?: any) => Promise<any>,
   exportSrt: (subtitleData: any[]) => Promise<any>,
   generateAudio: (text: string, options?: any) => Promise<any>,
   checkFFmpeg: () => Promise<{ exists: boolean; path: string }>,
@@ -14,7 +14,7 @@ export interface IElectronAPI {
 const electronHandler: IElectronAPI = {
   openFileDialog: () => ipcRenderer.invoke('dialog:openFile'),
   processVideo: (filePath) => ipcRenderer.invoke('video:process', filePath),
-  exportVideo: (sourceVideoPath, subtitleData, withDubbing = false, ttsOptions = {}) => ipcRenderer.invoke('video:export', { sourceVideoPath, subtitleData, withDubbing, ttsOptions }),
+  exportVideo: (sourceVideoPath, subtitleData, withDubbing = false, ttsOptions = {}, subtitleStyle = {}) => ipcRenderer.invoke('video:export', { sourceVideoPath, subtitleData, withDubbing, ttsOptions, subtitleStyle }),
   exportSrt: (subtitleData) => ipcRenderer.invoke('srt:export', subtitleData),
   generateAudio: (text, options = {}) => ipcRenderer.invoke('tts:generate', { text, options }),
   checkFFmpeg: () => ipcRenderer.invoke('ffmpeg:status'),
