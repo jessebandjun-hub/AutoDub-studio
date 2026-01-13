@@ -5,7 +5,7 @@
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build && electron-builder",
+    "build": "rimraf release dist dist-electron && set \"ELECTRON_BUILDER_CACHE=eb-cache\" && tsc && vite build && electron-builder --dir",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -49,16 +49,12 @@
     "win": {
       "target": [
         "nsis"
-      ]
+      ],
+      "requestedExecutionLevel": "asInvoker"
     },
     "mac": {
       "target": [
         "dmg"
-      ]
-    },
-    "linux": {
-      "target": [
-        "AppImage"
       ]
     }
   }

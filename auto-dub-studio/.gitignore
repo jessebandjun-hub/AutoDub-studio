@@ -1,3 +1,9 @@
+# Build Output
+release
+release-new
+release
+eb-cache
+
 # Logs
 logs
 *.log

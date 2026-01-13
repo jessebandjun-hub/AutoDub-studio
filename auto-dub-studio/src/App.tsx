@@ -21,7 +21,7 @@ function App() {
   })
 
   // 字幕样式配置
-  const [fontSize, setFontSize] = useState(24)
+  const [fontSize, setFontSize] = useState(12)
 
   // 常用语音列表
   const voiceOptions = [
