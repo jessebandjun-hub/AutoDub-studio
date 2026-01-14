@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "rimraf release dist dist-electron && set \"ELECTRON_BUILDER_CACHE=eb-cache\" && tsc && vite build && electron-builder --dir",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "push-proxy": "git -c http.proxy=http://127.0.0.1:7890 -c https.proxy=http://127.0.0.1:7890 push -u origin main"
   },
   "dependencies": {
     "bufferutil": "^4.1.0",
