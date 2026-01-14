@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import './App.css'
+import { ToneGenerator } from './lib/music-generator'
 
 // 模拟的字幕数据类型
 type SubtitleSegment = { id: number; start: number; end: number; text: string; }
@@ -50,6 +51,12 @@ function App() {
   const [fontSize, setFontSize] = useState(12)
   const [bgVolume, setBgVolume] = useState(0.3)
   const [bgmPath, setBgmPath] = useState<string>('')
+
+  // AI 音乐生成状态 (Tone.js)
+  const [musicEmotion, setMusicEmotion] = useState<'宁静' | '欢快' | '悲伤' | '紧张' | '宏大'>('宁静')
+  const [isGeneratingMusic, setIsGeneratingMusic] = useState(false)
+  const [musicGenStatus, setMusicGenStatus] = useState('')
+  const [musicPreviewUrl, setMusicPreviewUrl] = useState('')
 
   // 常用语音列表
   const voiceOptions = [
@@ -163,6 +170,51 @@ function App() {
     if (path) {
       setBgmPath(path)
       addLog(`已选择背景音乐：${path}`)
+    }
+  }
+
+  const handleGenerateMusic = async () => {
+    setIsGeneratingMusic(true)
+    setMusicGenStatus('正在初始化音频引擎...')
+    setMusicPreviewUrl('')
+    
+    try {
+      setMusicGenStatus('正在加载乐器采样 (首次需要下载)...')
+      await ToneGenerator.loadSamples()
+
+      setMusicGenStatus('正在谱曲并渲染音频...')
+      const duration = 30
+      const wavBuffer = await ToneGenerator.generate({ emotion: musicEmotion, duration })
+
+      const timestamp = new Date().toISOString().replace(/[-:.]/g, '')
+      const fileName = `bgm_tonejs_${timestamp}.wav`
+
+      setMusicGenStatus('正在保存...')
+
+      const result = await window.electronAPI.saveFile(
+        wavBuffer,
+        fileName,
+        outputDir,
+        autoSave
+      )
+
+      if (result.status === 'success' && result.path) {
+        setMusicGenStatus('生成成功！')
+        const fileUrl = `local-media:///${encodeURIComponent(result.path)}`
+        setMusicPreviewUrl(fileUrl)
+        setBgmPath(result.path)
+        addLog(`已自动应用生成的背景音乐：${result.path}`)
+      } else if (result.status === 'canceled') {
+        setMusicGenStatus('用户取消保存')
+      } else {
+        throw new Error(result.message || '保存失败')
+      }
+    } catch (error: any) {
+      console.error(error)
+      setMusicGenStatus(`错误: ${error.message}`)
+      addLog(`音乐生成错误: ${error.message}`)
+    } finally {
+      setIsGeneratingMusic(false)
     }
   }
 
@@ -434,6 +486,44 @@ function App() {
                     {bgmPath && <button onClick={() => setBgmPath('')} style={{ padding: '5px 10px' }}>×</button>}
                   </div>
                 </div>
+              </div>
+
+              <div className="card" style={{ marginBottom: 15 }}>
+                <h3>AI 音乐工坊 (轻量级算法生成)：</h3>
+                <div className="control-group">
+                  <label>情感基调：</label>
+                  <div className="radio-group">
+                    {['宁静', '欢快', '悲伤', '紧张', '宏大'].map(emo => (
+                      <label key={emo} style={{ marginRight: '10px' }}>
+                        <input 
+                          type="radio" 
+                          name="emotion" 
+                          value={emo} 
+                          checked={musicEmotion === emo} 
+                          onChange={(e) => setMusicEmotion(e.target.value as typeof musicEmotion)}
+                        /> {emo}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="control-group" style={{ marginTop: '10px' }}>
+                  <button 
+                    className="primary-btn full-width-btn" 
+                    onClick={handleGenerateMusic}
+                    disabled={isGeneratingMusic}
+                    style={{ backgroundColor: '#ff9800' }}
+                  >
+                    {isGeneratingMusic ? '✨ 正在谱曲中...' : '🎵 生成古风 BGM (纯本地)'}
+                  </button>
+                  {musicGenStatus && <span style={{ marginLeft: '10px', fontSize: '12px', color: '#666' }}>{musicGenStatus}</span>}
+                </div>
+
+                {musicPreviewUrl && (
+                  <div style={{ marginTop: '10px' }}>
+                    <audio src={musicPreviewUrl} controls style={{ width: '100%' }} />
+                  </div>
+                )}
               </div>
 
               <div className="card" style={{ marginBottom: 15 }}>

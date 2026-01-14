@@ -51,7 +51,7 @@ const createWindow = () => {
   // 开发环境加载 Vite 开发服务器地址，生产环境加载打包后的 html
   if (process.env.VITE_DEV_SERVER_URL) {
     win.loadURL(process.env.VITE_DEV_SERVER_URL)
-    win.webContents.openDevTools() // 开发时打开控制台
+     win.webContents.openDevTools() // 开发时打开控制台
   } else {
     win.loadFile(path.join(__dirname, '../dist/index.html'))
   }
@@ -457,6 +457,32 @@ app.whenReady().then(() => {
   
   ipcMain.handle('shell:showItemInFolder', async (_event, path) => {
     shell.showItemInFolder(path)
+  })
+
+  // 7. 监听：通用文件保存 (Buffer)
+  ipcMain.handle('file:save', async (_event, { buffer, fileName, outputDir, autoSave }) => {
+    try {
+      let savePath = ''
+      if (autoSave && outputDir) {
+          savePath = path.join(outputDir, fileName)
+      } else {
+          const { canceled, filePath } = await dialog.showSaveDialog(win!, {
+              title: '保存文件',
+              defaultPath: outputDir ? path.join(outputDir, fileName) : fileName,
+          })
+          if (canceled || !filePath) return { status: 'canceled' }
+          savePath = filePath
+      }
+
+      // buffer 是 ArrayBuffer，需要转为 Node Buffer
+      const nodeBuffer = Buffer.from(buffer)
+      await fs.promises.writeFile(savePath, nodeBuffer)
+      
+      return { status: 'success', path: savePath }
+    } catch (e: any) {
+      console.error(e)
+      return { status: 'error', message: e?.message || '保存失败' }
+    }
   })
 
 })
