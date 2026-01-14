@@ -49,6 +49,7 @@ function App() {
   // 字幕样式配置
   const [fontSize, setFontSize] = useState(12)
   const [bgVolume, setBgVolume] = useState(0.3)
+  const [bgmPath, setBgmPath] = useState<string>('')
 
   // 常用语音列表
   const voiceOptions = [
@@ -144,12 +145,24 @@ function App() {
 
   // 1. 选择文件
   const handleSelectFile = async () => {
-    const path = await window.electronAPI.openFileDialog()
+    const path = await window.electronAPI.openFileDialog({
+      filters: [{ name: 'Videos', extensions: ['mp4', 'mov', 'avi', 'mkv'] }]
+    })
     if (path) {
       setVideoPath(path)
       addLog(`已选择视频：${path}`)
       // 重置状态
       setSegments([])
+    }
+  }
+
+  const handleSelectBgm = async () => {
+    const path = await window.electronAPI.openFileDialog({
+      filters: [{ name: 'Audio', extensions: ['mp3', 'wav', 'm4a', 'flac'] }]
+    })
+    if (path) {
+      setBgmPath(path)
+      addLog(`已选择背景音乐：${path}`)
     }
   }
 
@@ -181,7 +194,7 @@ function App() {
 
     try {
       // 调用主进程进行导出，传入原视频路径和当前的字幕数据，以及 TTS 配置和字幕样式
-      const result = await window.electronAPI.exportVideo(videoPath, segments, withDubbing, ttsConfig, { fontSize }, outputDir, autoSave, bgVolume)
+      const result = await window.electronAPI.exportVideo(videoPath, segments, withDubbing, ttsConfig, { fontSize }, outputDir, autoSave, bgVolume, bgmPath)
       if (result.status === 'success') {
         addLog(`${logPrefix}导出成功！保存路径：${result.outputPath}`)
         setPreviewFile(result.outputPath)
@@ -409,6 +422,17 @@ function App() {
                     />
                     <span>{Math.round(bgVolume * 100)}%</span>
                   </label>
+                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 5, minWidth: 200 }}>
+                    <button onClick={handleSelectBgm} style={{ whiteSpace: 'nowrap' }}>选择背景音乐</button>
+                    <input 
+                      type="text" 
+                      value={bgmPath ? bgmPath.split('\\').pop() : '未选择 (使用原声)'} 
+                      readOnly 
+                      style={{ flex: 1, padding: '5px', fontSize: '12px', color: '#666' }} 
+                      title={bgmPath}
+                    />
+                    {bgmPath && <button onClick={() => setBgmPath('')} style={{ padding: '5px 10px' }}>×</button>}
+                  </div>
                 </div>
               </div>
 

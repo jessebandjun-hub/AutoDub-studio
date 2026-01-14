@@ -72,10 +72,11 @@ app.whenReady().then(() => {
   // --- IPC 监听：处理来自 React 的请求 ---
 
   // 1. 监听：打开文件对话框
-  ipcMain.handle('dialog:openFile', async () => {
+  ipcMain.handle('dialog:openFile', async (_event, options = {}) => {
+    const { filters } = options
     const { canceled, filePaths } = await dialog.showOpenDialog(win!, {
       properties: ['openFile'],
-      filters: [{ name: 'Videos', extensions: ['mp4', 'mov', 'avi', 'mkv'] }],
+      filters: filters || [{ name: 'Videos', extensions: ['mp4', 'mov', 'avi', 'mkv'] }],
     })
     if (canceled) return null
     return filePaths[0] // 返回选择的视频路径
@@ -115,7 +116,7 @@ app.whenReady().then(() => {
   })
 
   // 3. 监听：导出成品视频
-  ipcMain.handle('video:export', async (_event, { sourceVideoPath, subtitleData, withDubbing, ttsOptions, subtitleStyle: styleOptions, outputDir, autoSave, bgVolume }) => {
+  ipcMain.handle('video:export', async (_event, { sourceVideoPath, subtitleData, withDubbing, ttsOptions, subtitleStyle: styleOptions, outputDir, autoSave, bgVolume, bgmPath }) => {
     // 默认 TTS 选项
     const options = {
       voice: 'zh-CN-XiaoxiaoNeural',
@@ -241,12 +242,24 @@ app.whenReady().then(() => {
             const filterComplex: any[] = []
             const amixInputs: string[] = []
             
-            // 0. 准备背景音（原视频音频），先降低音量
-            // 如果不想保留背景音，可以去掉这一步
+            // 0. 准备背景音（原视频音频或自定义 BGM）
+            let bgmInputIdx = '0:a'
+            
+            if (bgmPath && fs.existsSync(bgmPath)) {
+                // 如果有自定义 BGM，添加为新输入
+                command.input(bgmPath).inputOptions(['-stream_loop -1']) // 循环播放 BGM
+                // 假设 BGM 是第二个输入 (索引 1)，因为 input(sourceVideoPath) 是第一个 (索引 0)
+                // 但 ttsFiles.forEach 也会添加输入。
+                // 顺序：Video(0) -> TTS Files(1...N) -> BGM(N+1)
+                const bgmIdx = 1 + ttsFiles.length
+                bgmInputIdx = `${bgmIdx}:a`
+            }
+
+            // 应用音量
             filterComplex.push({
                 filter: 'volume',
                 options: (bgVolume !== undefined ? bgVolume : 0.2).toString(), // 背景音音量
-                inputs: '0:a',
+                inputs: bgmInputIdx,
                 outputs: 'bgm'
             })
             amixInputs.push('bgm')
