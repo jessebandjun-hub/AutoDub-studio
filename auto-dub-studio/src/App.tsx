@@ -13,6 +13,30 @@ function App() {
   const videoUrl = videoPath ? `local-media:///${encodeURIComponent(videoPath)}` : ''
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const [editing, setEditing] = useState(false)
+  const [previewFile, setPreviewFile] = useState<string | null>(null)
+
+  // 输出目录配置
+  const [outputDir, setOutputDir] = useState('')
+  const [autoSave, setAutoSave] = useState(false)
+
+  useEffect(() => {
+    const savedDir = localStorage.getItem('outputDir')
+    const savedAuto = localStorage.getItem('autoSave')
+    if (savedDir) setOutputDir(savedDir)
+    if (savedAuto) setAutoSave(savedAuto === 'true')
+  }, [])
+
+  useEffect(() => {
+    localStorage.setItem('outputDir', outputDir)
+    localStorage.setItem('autoSave', String(autoSave))
+  }, [outputDir, autoSave])
+
+  const handleSelectOutputDir = async () => {
+    const path = await window.electronAPI.openDirectory()
+    if (path) {
+      setOutputDir(path)
+    }
+  }
 
   // TTS 配置状态
   const [ttsConfig, setTtsConfig] = useState({
@@ -24,6 +48,7 @@ function App() {
 
   // 字幕样式配置
   const [fontSize, setFontSize] = useState(12)
+  const [bgVolume, setBgVolume] = useState(0.3)
 
   // 常用语音列表
   const voiceOptions = [
@@ -63,7 +88,46 @@ function App() {
     { value: 'customerservice', label: '客服 (Customer Service)' },
     { value: 'assistant', label: '助手 (Assistant)' },
     { value: 'chat', label: '聊天 (Chat)' },
+    { value: 'affectionate', label: '深情 (Affectionate)' },
+    { value: 'calm', label: '冷静 (Calm)' },
+    { value: 'disgruntled', label: '不满 (Disgruntled)' },
+    { value: 'embarrassed', label: '尴尬 (Embarrassed)' },
+    { value: 'gentle', label: '温柔 (Gentle)' },
+    { value: 'lyrical', label: '抒情 (Lyrical)' },
+    { value: 'serious', label: '严肃 (Serious)' },
+    { value: 'sports-commentary', label: '体育解说 (Sports)' },
+    { value: 'sports-commentary-excited', label: '激动体育 (Sports Excited)' },
   ]
+
+  // 语音支持的风格映射
+  // 注意：Edge TTS 免费接口可能随时调整支持的风格，目前测试发现 Xiaoxiao/Yunxi 等不再支持 style 参数 (报错 1007)
+  const VOICE_STYLES: Record<string, string[]> = {
+    'zh-CN-XiaoxiaoNeural': [], // 暂时移除风格支持，避免 1007 错误
+    'zh-CN-YunxiNeural': [],    // 暂时移除风格支持
+    'zh-CN-YunjianNeural': ['sports-commentary', 'sports-commentary-excited'],
+    'zh-CN-XiaoyiNeural': ['angry', 'disgruntled', 'affectionate', 'cheerful', 'fearful', 'sad', 'embarrassed', 'serious', 'gentle'],
+    'zh-CN-YunyangNeural': ['customerservice', 'newscast'],
+    'zh-CN-XiaoshuangNeural': ['chat', 'cheerful', 'sad', 'angry'],
+    'zh-CN-YunfengNeural': ['angry', 'cheerful', 'disgruntled', 'fearful', 'sad', 'serious'],
+    'zh-HK-HiuGaaiNeural': [],
+    'zh-TW-HsiaoChenNeural': []
+  }
+
+  // 计算当前语音可用的风格
+  const currentStyles = styleOptions.filter(opt => {
+    // 默认风格总是存在
+    if (opt.value === '') return true
+    const supported = VOICE_STYLES[ttsConfig.voice] || []
+    return supported.includes(opt.value)
+  })
+
+  // 当语音切换时，如果当前风格不支持，则重置为默认
+  useEffect(() => {
+    const supported = VOICE_STYLES[ttsConfig.voice] || []
+    if (ttsConfig.style && !supported.includes(ttsConfig.style)) {
+      setTtsConfig(prev => ({ ...prev, style: '' }))
+    }
+  }, [ttsConfig.voice])
 
   const addLog = (msg: string) => setStatusLog(prev => [...prev, `> ${msg}`])
 
@@ -117,11 +181,13 @@ function App() {
 
     try {
       // 调用主进程进行导出，传入原视频路径和当前的字幕数据，以及 TTS 配置和字幕样式
-      const result = await window.electronAPI.exportVideo(videoPath, segments, withDubbing, ttsConfig, { fontSize })
+      const result = await window.electronAPI.exportVideo(videoPath, segments, withDubbing, ttsConfig, { fontSize }, outputDir, autoSave, bgVolume)
       if (result.status === 'success') {
         addLog(`${logPrefix}导出成功！保存路径：${result.outputPath}`)
+        setPreviewFile(result.outputPath)
       } else if (result.status === 'copied') {
         addLog(`未找到 FFmpeg，已复制原视频到：${result.outputPath}`)
+        setPreviewFile(result.outputPath)
       } else if (result.status === 'canceled') {
         addLog('用户取消导出。')
       } else if (result.status === 'error') {
@@ -138,7 +204,7 @@ function App() {
   const handleExportSrt = async () => {
     if (segments.length === 0) return
     try {
-      const result = await window.electronAPI.exportSrt(segments)
+      const result = await window.electronAPI.exportSrt(segments, outputDir, autoSave)
       if (result.status === 'success') {
         addLog(`SRT 导出成功！路径：${result.outputPath}`)
       } else if (result.status === 'canceled') {
@@ -151,24 +217,27 @@ function App() {
     }
   }
 
-  const handleTtsGenerate = async () => {
+  const handleTtsGenerate = async (preview = false) => {
     if (segments.length === 0) {
       addLog('没有可用的字幕片段。')
       return
     }
     const fullText = segments.map(seg => seg.text).join('，') // 使用逗号连接，停顿更自然
-    addLog('正在调用 Edge TTS 生成音频...')
+    const logPrefix = preview ? '试听音频' : 'TTS 音频'
+    addLog(`正在生成${logPrefix}...`)
     try {
-      const result = await window.electronAPI.generateAudio(fullText, ttsConfig)
+      // 传递 preview 参数，如果为 true，主进程将跳过保存对话框并保存到临时文件
+      const result = await window.electronAPI.generateAudio(fullText, { ...ttsConfig, preview }, preview, outputDir, autoSave)
       if (result.status === 'success') {
-        addLog(`TTS 音频生成成功！路径：${result.outputPath}`)
+        addLog(`${logPrefix}生成成功！`)
+        setPreviewFile(result.outputPath)
       } else if (result.status === 'canceled') {
-        addLog('用户取消 TTS 生成。')
+        addLog(`用户取消${logPrefix}生成。`)
       } else if (result.status === 'error') {
-        addLog(`TTS 生成失败：${result.message}`)
+        addLog(`${logPrefix}生成失败：${result.message}`)
       }
     } catch (error) {
-      addLog('TTS 生成出错。')
+      addLog(`${logPrefix}生成出错。`)
     }
   }
 
@@ -311,7 +380,7 @@ function App() {
                       value={ttsConfig.style}
                       onChange={e => setTtsConfig(prev => ({ ...prev, style: e.target.value }))}
                     >
-                      {styleOptions.map(opt => (
+                      {currentStyles.map(opt => (
                         <option key={opt.value} value={opt.value}>{opt.label}</option>
                       ))}
                     </select>
@@ -327,6 +396,43 @@ function App() {
                       max="100"
                     />
                   </label>
+                  <label style={{ display: 'flex', alignItems: 'center' }}>
+                    背景音量：
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.1"
+                      value={bgVolume}
+                      onChange={e => setBgVolume(parseFloat(e.target.value))}
+                      style={{ width: '100px', margin: '0 5px' }}
+                    />
+                    <span>{Math.round(bgVolume * 100)}%</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="card" style={{ marginBottom: 15 }}>
+                <h3>输出设置：</h3>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <input
+                      type="text"
+                      value={outputDir}
+                      placeholder="默认输出目录（留空则每次询问）"
+                      readOnly
+                      style={{ flex: 1, padding: '5px' }}
+                    />
+                    <button onClick={handleSelectOutputDir}>选择目录</button>
+                  </div>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={autoSave}
+                      onChange={e => setAutoSave(e.target.checked)}
+                    />
+                    自动保存到该目录（不再询问）
+                  </label>
                 </div>
               </div>
 
@@ -340,10 +446,30 @@ function App() {
                 <button className="export-btn" onClick={handleExportSrt} disabled={isExporting} style={{ marginLeft: 10 }}>
                     导出 SRT 字幕文件
                 </button>
-                <button className="export-btn" onClick={handleTtsGenerate} disabled={isExporting} style={{ marginLeft: 10, backgroundColor: '#0078d4' }}>
+                <button className="export-btn" onClick={() => handleTtsGenerate(false)} disabled={isExporting} style={{ marginLeft: 10, backgroundColor: '#0078d4' }}>
                     字幕转音频 (Edge TTS)
                 </button>
+                <button className="export-btn" onClick={() => handleTtsGenerate(true)} disabled={isExporting} style={{ marginLeft: 10, backgroundColor: '#FF5722' }}>
+                    试听音频 (预览)
+                </button>
               </div>
+              
+              {previewFile && (
+                <div className="card" style={{ marginTop: '10px', border: '1px solid #4CAF50' }}>
+                  <h3 style={{ color: '#4CAF50' }}>文件预览</h3>
+                  <video 
+                    src={`local-media:///${encodeURIComponent(previewFile)}`} 
+                    controls 
+                    className="video-player" 
+                    style={{ maxHeight: '200px' }}
+                  />
+                  <div style={{ marginTop: '10px', display: 'flex', gap: '10px' }}>
+                    <button onClick={() => window.electronAPI.openPath(previewFile)}>使用系统播放器播放</button>
+                    <button onClick={() => window.electronAPI.showItemInFolder(previewFile)}>在文件夹中显示</button>
+                    <button onClick={() => setPreviewFile(null)} style={{ backgroundColor: '#666' }}>关闭预览</button>
+                  </div>
+                </div>
+              )}
             </>
           )}
         </div>

@@ -81,6 +81,15 @@ app.whenReady().then(() => {
     return filePaths[0] // 返回选择的视频路径
   })
 
+  // 1.5 监听：打开目录对话框
+  ipcMain.handle('dialog:openDirectory', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog(win!, {
+      properties: ['openDirectory'],
+    })
+    if (canceled) return null
+    return filePaths[0]
+  })
+
   // 2. 监听：执行处理 (模拟 FFmpeg 调用)
   ipcMain.handle('video:process', async (_event, videoPath) => {
     console.log('Main process received video for processing:', videoPath)
@@ -106,7 +115,7 @@ app.whenReady().then(() => {
   })
 
   // 3. 监听：导出成品视频
-  ipcMain.handle('video:export', async (_event, { sourceVideoPath, subtitleData, withDubbing, ttsOptions, subtitleStyle: styleOptions }) => {
+  ipcMain.handle('video:export', async (_event, { sourceVideoPath, subtitleData, withDubbing, ttsOptions, subtitleStyle: styleOptions, outputDir, autoSave, bgVolume }) => {
     // 默认 TTS 选项
     const options = {
       voice: 'zh-CN-XiaoxiaoNeural',
@@ -128,13 +137,19 @@ app.whenReady().then(() => {
     const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`
     const defaultFilename = `dubbed_output_${timestamp}.mp4`
 
-    const { canceled, filePath: savePath } = await dialog.showSaveDialog(win!, {
-        title: '导出配音视频',
-        defaultPath: defaultFilename,
-        filters: [{ name: 'MP4 视频', extensions: ['mp4'] }]
-    })
+    let savePath = ''
 
-    if (canceled || !savePath) return { status: 'canceled' }
+    if (autoSave && outputDir) {
+        savePath = path.join(outputDir, defaultFilename)
+    } else {
+        const { canceled, filePath } = await dialog.showSaveDialog(win!, {
+            title: '导出配音视频',
+            defaultPath: outputDir ? path.join(outputDir, defaultFilename) : defaultFilename,
+            filters: [{ name: 'MP4 视频', extensions: ['mp4'] }]
+        })
+        if (canceled || !filePath) return { status: 'canceled' }
+        savePath = filePath
+    }
 
     const exists = fs.existsSync(ffmpegPath)
     if (!exists) {
@@ -226,6 +241,16 @@ app.whenReady().then(() => {
             const filterComplex: any[] = []
             const amixInputs: string[] = []
             
+            // 0. 准备背景音（原视频音频），先降低音量
+            // 如果不想保留背景音，可以去掉这一步
+            filterComplex.push({
+                filter: 'volume',
+                options: (bgVolume !== undefined ? bgVolume : 0.2).toString(), // 背景音音量
+                inputs: '0:a',
+                outputs: 'bgm'
+            })
+            amixInputs.push('bgm')
+
             ttsFiles.forEach((f, i) => {
                 const inputIdx = i + 1 // 0 是视频
                 const delay = Math.round((f.start || 0) * 1000)
@@ -252,10 +277,11 @@ app.whenReady().then(() => {
                 outputs: 'amixed'
             })
             
-            // 音量补偿: 简单乘以 N
+            // 音量补偿: 简单乘以 N (或者根据实际听感调整)
+            // 这里我们希望人声清晰，背景音低，amix 会自动平均，所以可能不需要太大的补偿，或者稍微放大一点
             filterComplex.push({
                 filter: 'volume',
-                options: count.toString(),
+                options: '2', // 稍微放大混合后的音量
                 inputs: 'amixed',
                 outputs: 'aout'
             })
@@ -302,19 +328,25 @@ app.whenReady().then(() => {
   })
 
   // 4. 监听：仅导出 SRT 字幕文件
-  ipcMain.handle('srt:export', async (_event, subtitleData) => {
+  ipcMain.handle('srt:export', async (_event, { subtitleData, outputDir, autoSave }) => {
     // 生成带时间戳的文件名：subtitle_20231027_143005.srt
     const now = new Date()
     const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`
     const defaultFilename = `subtitle_${timestamp}.srt`
 
-    const { canceled, filePath: savePath } = await dialog.showSaveDialog(win!, {
-      title: '导出字幕文件',
-      defaultPath: defaultFilename,
-      filters: [{ name: 'SRT 字幕', extensions: ['srt'] }]
-    })
+    let savePath = ''
 
-    if (canceled || !savePath) return { status: 'canceled' }
+    if (autoSave && outputDir) {
+        savePath = path.join(outputDir, defaultFilename)
+    } else {
+        const { canceled, filePath } = await dialog.showSaveDialog(win!, {
+            title: '导出字幕文件',
+            defaultPath: outputDir ? path.join(outputDir, defaultFilename) : defaultFilename,
+            filters: [{ name: 'SRT 字幕', extensions: ['srt'] }]
+        })
+        if (canceled || !filePath) return { status: 'canceled' }
+        savePath = filePath
+    }
 
     try {
       // 简单的 SRT 时间格式化函数 (复用逻辑)
@@ -344,7 +376,7 @@ app.whenReady().then(() => {
   })
 
   // 5. 监听：TTS 字幕转音频
-  ipcMain.handle('tts:generate', async (_event, { text, options: ttsOptions }) => {
+  ipcMain.handle('tts:generate', async (_event, { text, options: ttsOptions, preview, outputDir, autoSave }) => {
     try {
       const options = {
         voice: 'zh-CN-XiaoxiaoNeural',
@@ -366,25 +398,52 @@ app.whenReady().then(() => {
         style: options.style
       })
       
-      const now = new Date()
-      const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`
-      const defaultFilename = `tts_audio_${timestamp}.mp3`
+      let savePath = ''
       
-      const { canceled, filePath: savePath } = await dialog.showSaveDialog(win!, {
-        title: '保存 TTS 音频',
-        defaultPath: defaultFilename,
-        filters: [{ name: 'MP3 音频', extensions: ['mp3'] }]
-      })
+      if (preview) {
+        // 预览模式：保存到临时目录
+        const tempDir = app.getPath('temp')
+        savePath = path.join(tempDir, `preview_tts_${Date.now()}.mp3`)
+      } else {
+        // 导出模式：用户选择保存位置
+        const now = new Date()
+        const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`
+        const defaultFilename = `tts_audio_${timestamp}.mp3`
+        
+        if (autoSave && outputDir) {
+            savePath = path.join(outputDir, defaultFilename)
+        } else {
+            const { canceled, filePath } = await dialog.showSaveDialog(win!, {
+                title: '保存 TTS 音频',
+                defaultPath: outputDir ? path.join(outputDir, defaultFilename) : defaultFilename,
+                filters: [{ name: 'MP3 音频', extensions: ['mp3'] }]
+            })
 
-      if (canceled || !savePath) return { status: 'canceled' }
+            if (canceled || !filePath) return { status: 'canceled' }
+            savePath = filePath
+        }
+      }
 
       await tts.ttsPromise(text, savePath)
-      shell.showItemInFolder(savePath)
+      
+      if (!preview) {
+        shell.showItemInFolder(savePath)
+      }
+      
       return { status: 'success', outputPath: savePath }
     } catch (e: any) {
       console.error(e)
       return { status: 'error', message: e?.message || 'TTS 生成失败' }
     }
+  })
+
+  // 6. 监听：Shell 操作
+  ipcMain.handle('shell:openPath', async (_event, path) => {
+    return await shell.openPath(path)
+  })
+  
+  ipcMain.handle('shell:showItemInFolder', async (_event, path) => {
+    shell.showItemInFolder(path)
   })
 
 })

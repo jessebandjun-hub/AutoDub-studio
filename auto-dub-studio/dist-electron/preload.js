@@ -2,10 +2,13 @@
 const electron = require("electron");
 const electronHandler = {
   openFileDialog: () => electron.ipcRenderer.invoke("dialog:openFile"),
+  openDirectory: () => electron.ipcRenderer.invoke("dialog:openDirectory"),
   processVideo: (filePath) => electron.ipcRenderer.invoke("video:process", filePath),
-  exportVideo: (sourceVideoPath, subtitleData, withDubbing = false, ttsOptions = {}, subtitleStyle = {}) => electron.ipcRenderer.invoke("video:export", { sourceVideoPath, subtitleData, withDubbing, ttsOptions, subtitleStyle }),
-  exportSrt: (subtitleData) => electron.ipcRenderer.invoke("srt:export", subtitleData),
-  generateAudio: (text, options = {}) => electron.ipcRenderer.invoke("tts:generate", { text, options }),
-  checkFFmpeg: () => electron.ipcRenderer.invoke("ffmpeg:status")
+  exportVideo: (sourceVideoPath, subtitleData, withDubbing = false, ttsOptions = {}, subtitleStyle = {}, outputDir = "", autoSave = false, bgVolume = 0.3) => electron.ipcRenderer.invoke("video:export", { sourceVideoPath, subtitleData, withDubbing, ttsOptions, subtitleStyle, outputDir, autoSave, bgVolume }),
+  exportSrt: (subtitleData, outputDir = "", autoSave = false) => electron.ipcRenderer.invoke("srt:export", { subtitleData, outputDir, autoSave }),
+  generateAudio: (text, options = {}, preview = false, outputDir = "", autoSave = false) => electron.ipcRenderer.invoke("tts:generate", { text, options, preview, outputDir, autoSave }),
+  checkFFmpeg: () => electron.ipcRenderer.invoke("ffmpeg:status"),
+  openPath: (path) => electron.ipcRenderer.invoke("shell:openPath", path),
+  showItemInFolder: (path) => electron.ipcRenderer.invoke("shell:showItemInFolder", path)
 };
 electron.contextBridge.exposeInMainWorld("electronAPI", electronHandler);
