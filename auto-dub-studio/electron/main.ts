@@ -115,6 +115,49 @@ app.whenReady().then(() => {
     }
   })
 
+  ipcMain.handle('video:trim', async (_event, { sourceVideoPath, start, end, outputDir, autoSave }) => {
+    try {
+      const now = new Date()
+      const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`
+      const defaultFilename = `trim_${timestamp}.mp4`
+
+      let savePath = ''
+
+      if (autoSave && outputDir) {
+        savePath = path.join(outputDir, defaultFilename)
+      } else {
+        const { canceled, filePath } = await dialog.showSaveDialog(win!, {
+          title: '保存剪辑后的视频',
+          defaultPath: outputDir ? path.join(outputDir, defaultFilename) : defaultFilename,
+          filters: [{ name: 'MP4 视频', extensions: ['mp4'] }],
+        })
+        if (canceled || !filePath) return { status: 'canceled' }
+        savePath = filePath
+      }
+
+      const duration = Math.max(0, (end ?? 0) - (start ?? 0))
+      if (!sourceVideoPath || duration <= 0) {
+        return { status: 'error', message: '无效的剪辑时间范围' }
+      }
+
+      await new Promise<void>((resolve, reject) => {
+        ffmpeg(sourceVideoPath)
+          .setStartTime(start)
+          .setDuration(duration)
+          .outputOptions(['-c:v libx264', '-c:a aac', '-preset veryfast', '-crf 23'])
+          .save(savePath)
+          .on('end', () => resolve())
+          .on('error', (err) => reject(err))
+      })
+
+      shell.showItemInFolder(savePath)
+      return { status: 'success', outputPath: savePath }
+    } catch (e: any) {
+      console.error(e)
+      return { status: 'error', message: e?.message || '剪辑失败' }
+    }
+  })
+
   // 3. 监听：导出成品视频
   ipcMain.handle('video:export', async (_event, { sourceVideoPath, subtitleData, withDubbing, ttsOptions, subtitleStyle: styleOptions, outputDir, autoSave, bgVolume, bgmPath }) => {
     // 默认 TTS 选项
@@ -457,6 +500,82 @@ app.whenReady().then(() => {
   
   ipcMain.handle('shell:showItemInFolder', async (_event, path) => {
     shell.showItemInFolder(path)
+  })
+
+  ipcMain.handle('video:concat', async (_event, { videoPaths, outputDir, autoSave }) => {
+    if (!Array.isArray(videoPaths) || videoPaths.length < 2) {
+      return { status: 'error', message: '至少需要两个视频进行拼接' }
+    }
+    let tempDir = ''
+    try {
+      const now = new Date()
+      const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`
+      const defaultFilename = `concat_${timestamp}.mp4`
+
+      let savePath = ''
+
+      if (autoSave && outputDir) {
+        savePath = path.join(outputDir, defaultFilename)
+      } else {
+        const { canceled, filePath } = await dialog.showSaveDialog(win!, {
+          title: '保存拼接后的视频',
+          defaultPath: outputDir ? path.join(outputDir, defaultFilename) : defaultFilename,
+          filters: [{ name: 'MP4 视频', extensions: ['mp4'] }],
+        })
+        if (canceled || !filePath) return { status: 'canceled' }
+        savePath = filePath
+      }
+
+      tempDir = await fs.promises.mkdtemp(path.join(app.getPath('temp'), 'autodub-concat-'))
+      const intermediateFiles: string[] = []
+
+      for (let i = 0; i < videoPaths.length; i++) {
+        const inputPath = videoPaths[i]
+        if (!fs.existsSync(inputPath)) {
+          return { status: 'error', message: `文件不存在：${inputPath}` }
+        }
+        const outPath = path.join(tempDir, `part_${i}.mp4`)
+        await new Promise<void>((resolve, reject) => {
+          ffmpeg(inputPath)
+            .outputOptions(['-c:v libx264', '-c:a aac', '-preset veryfast', '-crf 23'])
+            .save(outPath)
+            .on('end', () => resolve())
+            .on('error', (err) => reject(err))
+        })
+        intermediateFiles.push(outPath)
+      }
+
+      const listFile = path.join(tempDir, 'concat_list.txt')
+      const listContent = intermediateFiles
+        .map(f => {
+          const normalized = f.replace(/\\/g, '/')
+          return `file '${normalized}'`
+        })
+        .join('\n')
+      await fs.promises.writeFile(listFile, listContent, 'utf-8')
+
+      await new Promise<void>((resolve, reject) => {
+        ffmpeg()
+          .input(listFile)
+          .inputOptions(['-f', 'concat', '-safe', '0'])
+          .outputOptions(['-c', 'copy'])
+          .save(savePath)
+          .on('end', () => resolve())
+          .on('error', (err) => reject(err))
+      })
+
+      shell.showItemInFolder(savePath)
+      return { status: 'success', outputPath: savePath }
+    } catch (e: any) {
+      console.error(e)
+      return { status: 'error', message: e?.message || '拼接失败' }
+    } finally {
+      if (tempDir) {
+        try {
+          await fs.promises.rm(tempDir, { recursive: true, force: true })
+        } catch {}
+      }
+    }
   })
 
 })

@@ -11,6 +11,8 @@ export interface IElectronAPI {
   checkFFmpeg: () => Promise<{ exists: boolean; path: string }>,
   openPath: (path: string) => Promise<string>,
   showItemInFolder: (path: string) => Promise<void>,
+  trimVideo: (sourceVideoPath: string, options: { start: number; end: number; outputDir?: string; autoSave?: boolean }) => Promise<any>,
+  concatVideos: (videoPaths: string[], options: { outputDir?: string; autoSave?: boolean }) => Promise<any>,
 }
 
 // 实现 API
@@ -24,6 +26,8 @@ const electronHandler: IElectronAPI = {
   checkFFmpeg: () => ipcRenderer.invoke('ffmpeg:status'),
   openPath: (path) => ipcRenderer.invoke('shell:openPath', path),
   showItemInFolder: (path) => ipcRenderer.invoke('shell:showItemInFolder', path),
+  trimVideo: (sourceVideoPath, options) => ipcRenderer.invoke('video:trim', { sourceVideoPath, ...options }),
+  concatVideos: (videoPaths, options) => ipcRenderer.invoke('video:concat', { videoPaths, ...options }),
 }
 
 // 将 API 暴露到全局 window 对象上，命名为 window.electronAPI

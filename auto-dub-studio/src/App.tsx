@@ -50,6 +50,22 @@ function App() {
   const [fontSize, setFontSize] = useState(12)
   const [bgVolume, setBgVolume] = useState(0.3)
   const [bgmPath, setBgmPath] = useState<string>('')
+  const [concatList, setConcatList] = useState<string[]>([])
+  const [isConcating, setIsConcating] = useState(false)
+  const [trimStart, setTrimStart] = useState('0')
+  const [trimEnd, setTrimEnd] = useState('0')
+  const [isTrimming, setIsTrimming] = useState(false)
+  const [videoDuration, setVideoDuration] = useState(0)
+  const trimBarRef = useRef<HTMLDivElement | null>(null)
+  const [draggingHandle, setDraggingHandle] = useState<'start' | 'end' | null>(null)
+
+  const safeDuration = videoDuration > 0 ? videoDuration : 0
+  const trimStartNum = parseFloat(trimStart) || 0
+  const trimEndNum = parseFloat(trimEnd) || 0
+  const clippedStart = safeDuration > 0 ? Math.min(Math.max(trimStartNum, 0), safeDuration) : 0
+  const clippedEnd = safeDuration > 0 ? Math.min(Math.max(trimEndNum, 0), safeDuration) : 0
+  const rangeStartRatio = safeDuration > 0 ? (clippedStart / safeDuration) * 100 : 0
+  const rangeEndRatio = safeDuration > 0 ? (clippedEnd / safeDuration) * 100 : 0
 
   // 常用语音列表
   const voiceOptions = [
@@ -143,6 +159,60 @@ function App() {
     })()
   }, [])
 
+  useEffect(() => {
+    if (!videoPath) {
+      setVideoDuration(0)
+      setTrimStart('0')
+      setTrimEnd('0')
+    }
+  }, [videoPath])
+
+  useEffect(() => {
+    const el = videoRef.current
+    if (!el) return
+    const handleLoaded = () => {
+      const d = el.duration || 0
+      setVideoDuration(d)
+      setTrimStart('0')
+      setTrimEnd(d > 0 ? d.toFixed(2) : '0')
+    }
+    el.addEventListener('loadedmetadata', handleLoaded)
+    if (el.readyState >= 1) {
+      handleLoaded()
+    }
+    return () => {
+      el.removeEventListener('loadedmetadata', handleLoaded)
+    }
+  }, [videoPath])
+
+  useEffect(() => {
+    const handleMove = (e: MouseEvent) => {
+      if (!draggingHandle || !trimBarRef.current || videoDuration <= 0) return
+      const rect = trimBarRef.current.getBoundingClientRect()
+      const x = e.clientX - rect.left
+      const ratio = Math.min(1, Math.max(0, x / rect.width))
+      const time = parseFloat((ratio * videoDuration).toFixed(2))
+      if (draggingHandle === 'start') {
+        const endNum = parseFloat(trimEnd) || 0
+        const value = Math.min(time, endNum)
+        setTrimStart(value.toString())
+      } else {
+        const startNum = parseFloat(trimStart) || 0
+        const value = Math.max(time, startNum)
+        setTrimEnd(value.toString())
+      }
+    }
+    const handleUp = () => {
+      setDraggingHandle(null)
+    }
+    window.addEventListener('mousemove', handleMove)
+    window.addEventListener('mouseup', handleUp)
+    return () => {
+      window.removeEventListener('mousemove', handleMove)
+      window.removeEventListener('mouseup', handleUp)
+    }
+  }, [draggingHandle, videoDuration, trimStart, trimEnd])
+
   // 1. 选择文件
   const handleSelectFile = async () => {
     const path = await window.electronAPI.openFileDialog({
@@ -153,6 +223,8 @@ function App() {
       addLog(`已选择视频：${path}`)
       // 重置状态
       setSegments([])
+      setTrimStart('0')
+      setTrimEnd('0')
     }
   }
 
@@ -163,6 +235,76 @@ function App() {
     if (path) {
       setBgmPath(path)
       addLog(`已选择背景音乐：${path}`)
+    }
+  }
+
+  const handleTrimVideo = async () => {
+    if (!videoPath) {
+      addLog('请先选择要剪辑的视频。')
+      return
+    }
+    const maxDuration = videoDuration || videoRef.current?.duration || 0
+    const startRaw = parseFloat(trimStart)
+    const endRaw = parseFloat(trimEnd)
+    if (isNaN(startRaw) || isNaN(endRaw)) {
+      addLog('剪辑时间无效，请检查开始和结束时间。')
+      return
+    }
+    const start = Math.max(0, Math.min(startRaw, maxDuration))
+    const end = Math.max(0, Math.min(endRaw, maxDuration))
+    if (end <= start || maxDuration <= 0) {
+      addLog('剪辑时间无效，请检查开始和结束时间。')
+      return
+    }
+    setIsTrimming(true)
+    addLog(`开始剪辑视频：${start}s ~ ${end}s`)
+    try {
+      const result = await window.electronAPI.trimVideo(videoPath, { start, end, outputDir, autoSave })
+      if (result.status === 'success') {
+        addLog(`剪辑完成，保存路径：${result.outputPath}`)
+        setPreviewFile(result.outputPath)
+      } else if (result.status === 'canceled') {
+        addLog('用户取消剪辑保存。')
+      } else if (result.status === 'error') {
+        addLog(`剪辑失败：${result.message || '未知错误'}`)
+      }
+    } catch {
+      addLog('剪辑过程中出错。')
+    } finally {
+      setIsTrimming(false)
+    }
+  }
+
+  const handleAddConcatVideo = async () => {
+    const path = await window.electronAPI.openFileDialog({
+      filters: [{ name: 'Videos', extensions: ['mp4', 'mov', 'avi', 'mkv'] }],
+    })
+    if (path) {
+      setConcatList(prev => [...prev, path])
+    }
+  }
+
+  const handleConcatVideos = async () => {
+    if (concatList.length < 2) {
+      addLog('请至少添加两个视频再进行拼接。')
+      return
+    }
+    setIsConcating(true)
+    addLog(`开始拼接 ${concatList.length} 个视频。`)
+    try {
+      const result = await window.electronAPI.concatVideos(concatList, { outputDir, autoSave })
+      if (result.status === 'success') {
+        addLog(`拼接完成，保存路径：${result.outputPath}`)
+        setPreviewFile(result.outputPath)
+      } else if (result.status === 'canceled') {
+        addLog('用户取消拼接保存。')
+      } else if (result.status === 'error') {
+        addLog(`拼接失败：${result.message || '未知错误'}`)
+      }
+    } catch {
+      addLog('拼接过程中出错。')
+    } finally {
+      setIsConcating(false)
     }
   }
 
@@ -264,10 +406,160 @@ function App() {
       ) : (
         <div className="main-layout">
           <div className="left-panel">
-            <div className="card">
-              <video className="video-player" src={videoUrl} controls ref={videoRef} />
-              <p className="path-display">当前：{videoPath}</p>
-              <button onClick={handleSelectFile} disabled={isProcessing || isExporting}>更换视频</button>
+            <div className="card" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', backgroundColor: '#000', border: '1px solid #333' }}>
+              <div style={{ position: 'relative', flex: 1, minHeight: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#000' }}>
+                 <video className="video-player" src={videoUrl} controls ref={videoRef} style={{ width: '100%', maxHeight: '500px', outline: 'none' }} />
+              </div>
+              
+              {/* 整合式剪辑控制栏 */}
+              <div style={{ background: '#1a1a1a', padding: '12px 16px', borderTop: '1px solid #333' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <div style={{ fontSize: 12, color: '#aaa', display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontWeight: 'bold', color: '#eee' }}>剪辑范围</span>
+                        <span style={{ background: '#333', padding: '2px 6px', borderRadius: 4 }}>
+                          {(parseFloat(trimEnd) - parseFloat(trimStart)).toFixed(2)}s
+                        </span>
+                    </div>
+                    <div style={{ fontSize: 12, color: '#666' }}>
+                        总时长: {safeDuration.toFixed(2)}s
+                    </div>
+                </div>
+
+                <div style={{ position: 'relative', height: 40, marginBottom: 8, display: 'flex', alignItems: 'center' }}>
+                   <div 
+                    ref={trimBarRef}
+                    style={{
+                      flex: 1,
+                      height: 24,
+                      position: 'relative',
+                      background: '#0a0a0a',
+                      borderRadius: 4,
+                      cursor: safeDuration > 0 ? 'pointer' : 'not-allowed',
+                      border: '1px solid #333'
+                    }}
+                    onMouseDown={e => {
+                      if (!trimBarRef.current || safeDuration <= 0) return
+                      const rect = trimBarRef.current.getBoundingClientRect()
+                      const x = e.clientX - rect.left
+                      const ratio = Math.min(1, Math.max(0, x / rect.width))
+                      const t = parseFloat((ratio * safeDuration).toFixed(2))
+                      const mid = (clippedStart + clippedEnd) / 2
+                      if (t <= mid) {
+                        setDraggingHandle('start')
+                        const v = Math.min(t, clippedEnd)
+                        setTrimStart(v.toString())
+                      } else {
+                        setDraggingHandle('end')
+                        const v = Math.max(t, clippedStart)
+                        setTrimEnd(v.toString())
+                      }
+                    }}
+                   >
+                      {/* 选中区域 */}
+                      <div
+                        style={{
+                          position: 'absolute',
+                          left: `${rangeStartRatio}%`,
+                          right: `${100 - rangeEndRatio}%`,
+                          top: 0,
+                          bottom: 0,
+                          background: 'rgba(76, 175, 80, 0.2)',
+                          borderLeft: '2px solid #4caf50',
+                          borderRight: '2px solid #4caf50',
+                          pointerEvents: 'none'
+                        }}
+                      />
+                      
+                      {/* 拖拽手柄 - 左 */}
+                      <div
+                        style={{
+                          position: 'absolute',
+                          left: `${rangeStartRatio}%`,
+                          top: '50%',
+                          transform: 'translate(-50%, -50%)',
+                          width: 12,
+                          height: 28,
+                          background: '#e0e0e0',
+                          borderRadius: 2,
+                          cursor: 'ew-resize',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.5)',
+                          zIndex: 10,
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center'
+                        }}
+                        onMouseDown={e => {
+                          e.stopPropagation()
+                          if (safeDuration <= 0) return
+                          setDraggingHandle('start')
+                        }}
+                      >
+                         <div style={{ width: 2, height: 12, background: '#888' }} />
+                      </div>
+
+                      {/* 拖拽手柄 - 右 */}
+                      <div
+                        style={{
+                          position: 'absolute',
+                          left: `${rangeEndRatio}%`,
+                          top: '50%',
+                          transform: 'translate(-50%, -50%)',
+                          width: 12,
+                          height: 28,
+                          background: '#e0e0e0',
+                          borderRadius: 2,
+                          cursor: 'ew-resize',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.5)',
+                          zIndex: 10,
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center'
+                        }}
+                        onMouseDown={e => {
+                          e.stopPropagation()
+                          if (safeDuration <= 0) return
+                          setDraggingHandle('end')
+                        }}
+                      >
+                         <div style={{ width: 2, height: 12, background: '#888' }} />
+                      </div>
+                   </div>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
+                         <input 
+                           type="number" 
+                           value={trimStart} 
+                           onChange={e => setTrimStart(e.target.value)} 
+                           style={{ width: 60, padding: '4px', background: '#222', border: '1px solid #444', color: '#fff', borderRadius: 4, fontSize: 12 }} 
+                           min="0"
+                         />
+                         <span style={{ color: '#666' }}>-</span>
+                         <input 
+                           type="number" 
+                           value={trimEnd} 
+                           onChange={e => setTrimEnd(e.target.value)} 
+                           style={{ width: 60, padding: '4px', background: '#222', border: '1px solid #444', color: '#fff', borderRadius: 4, fontSize: 12 }} 
+                           min="0"
+                         />
+                    </div>
+                    
+                    <button
+                      className="export-btn"
+                      onClick={handleTrimVideo}
+                      disabled={isTrimming || isExporting}
+                      style={{ padding: '6px 12px', fontSize: 12, height: 'fit-content' }}
+                    >
+                      {isTrimming ? '剪辑中...' : '导出片段'}
+                    </button>
+                </div>
+              </div>
+
+              <div style={{ padding: '10px 16px', background: '#222', borderTop: '1px solid #333', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                 <p className="path-display" style={{ margin: 0, fontSize: 12, color: '#888', wordBreak: 'break-all' }}>当前：{videoPath}</p>
+                 <button onClick={handleSelectFile} disabled={isProcessing || isExporting} style={{ width: '100%' }}>更换视频</button>
+              </div>
             </div>
           </div>
           <div className="right-panel">
@@ -349,8 +641,52 @@ function App() {
             ))}
           </div>
 
-          {segments.length > 0 && (
+          {true && (
             <>
+
+
+              <div className="card" style={{ marginBottom: 15 }}>
+                <h3>多视频拼接：</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <button onClick={handleAddConcatVideo} disabled={isConcating || isExporting}>
+                      添加视频到拼接列表
+                    </button>
+                    <button
+                      className="export-btn"
+                      onClick={handleConcatVideos}
+                      disabled={isConcating || concatList.length < 2 || isExporting}
+                      style={{ marginLeft: 10 }}
+                    >
+                      {isConcating ? '拼接中...' : '拼接视频列表'}
+                    </button>
+                  </div>
+                  {concatList.length > 0 && (
+                    <div style={{ maxHeight: 120, overflowY: 'auto', fontSize: 12 }}>
+                      {concatList.map((p, idx) => (
+                        <div
+                          key={`${p}-${idx}`}
+                          style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}
+                        >
+                          <span style={{ width: 18 }}>{idx + 1}.</span>
+                          <span style={{ flex: 1 }} title={p}>
+                            {p.split('\\').pop()}
+                          </span>
+                          <button
+                            onClick={() =>
+                              setConcatList(prev => prev.filter((_, i) => i !== idx))
+                            }
+                            style={{ padding: '2px 6px' }}
+                          >
+                            删除
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <div className="card" style={{ marginBottom: 15 }}>
                 <h3>导出设置：</h3>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -461,19 +797,19 @@ function App() {
               </div>
 
               <div className="card action-card">
-                {/* <button className="export-btn" onClick={() => handleExport(false)} disabled={isExporting}>
+                {/* <button className="export-btn" onClick={() => handleExport(false)} disabled={isExporting || segments.length === 0}>
                     {isExporting ? '导出中...' : '导出视频（烧录字幕）'}
                 </button> */}
-                <button className="export-btn" onClick={() => handleExport(true)} disabled={isExporting} style={{ marginLeft: 10, backgroundColor: '#8a2be2' }}>
+                <button className="export-btn" onClick={() => handleExport(true)} disabled={isExporting || segments.length === 0} style={{ marginLeft: 10, backgroundColor: '#8a2be2' }}>
                     导出配音视频 (TTS+字幕)
                 </button>
-                <button className="export-btn" onClick={handleExportSrt} disabled={isExporting} style={{ marginLeft: 10 }}>
+                <button className="export-btn" onClick={handleExportSrt} disabled={isExporting || segments.length === 0} style={{ marginLeft: 10 }}>
                     导出 SRT 字幕文件
                 </button>
-                <button className="export-btn" onClick={() => handleTtsGenerate(false)} disabled={isExporting} style={{ marginLeft: 10, backgroundColor: '#0078d4' }}>
+                <button className="export-btn" onClick={() => handleTtsGenerate(false)} disabled={isExporting || segments.length === 0} style={{ marginLeft: 10, backgroundColor: '#0078d4' }}>
                     字幕转音频 (Edge TTS)
                 </button>
-                <button className="export-btn" onClick={() => handleTtsGenerate(true)} disabled={isExporting} style={{ marginLeft: 10, backgroundColor: '#FF5722' }}>
+                <button className="export-btn" onClick={() => handleTtsGenerate(true)} disabled={isExporting || segments.length === 0} style={{ marginLeft: 10, backgroundColor: '#FF5722' }}>
                     试听音频 (预览)
                 </button>
               </div>

@@ -2455,7 +2455,7 @@ const kAborted = Symbol("kAborted");
 const protocolVersions = [8, 13];
 const readyStates = ["CONNECTING", "OPEN", "CLOSING", "CLOSED"];
 const subprotocolRegex = /^[!#$%&'*+\-.0-9A-Z^_`|a-z~]+$/;
-let WebSocket$1 = class WebSocket extends EventEmitter {
+class WebSocket extends EventEmitter {
   /**
    * Create a new `WebSocket`.
    *
@@ -2824,36 +2824,36 @@ let WebSocket$1 = class WebSocket extends EventEmitter {
       this._socket.destroy();
     }
   }
-};
-Object.defineProperty(WebSocket$1, "CONNECTING", {
+}
+Object.defineProperty(WebSocket, "CONNECTING", {
   enumerable: true,
   value: readyStates.indexOf("CONNECTING")
 });
-Object.defineProperty(WebSocket$1.prototype, "CONNECTING", {
+Object.defineProperty(WebSocket.prototype, "CONNECTING", {
   enumerable: true,
   value: readyStates.indexOf("CONNECTING")
 });
-Object.defineProperty(WebSocket$1, "OPEN", {
+Object.defineProperty(WebSocket, "OPEN", {
   enumerable: true,
   value: readyStates.indexOf("OPEN")
 });
-Object.defineProperty(WebSocket$1.prototype, "OPEN", {
+Object.defineProperty(WebSocket.prototype, "OPEN", {
   enumerable: true,
   value: readyStates.indexOf("OPEN")
 });
-Object.defineProperty(WebSocket$1, "CLOSING", {
+Object.defineProperty(WebSocket, "CLOSING", {
   enumerable: true,
   value: readyStates.indexOf("CLOSING")
 });
-Object.defineProperty(WebSocket$1.prototype, "CLOSING", {
+Object.defineProperty(WebSocket.prototype, "CLOSING", {
   enumerable: true,
   value: readyStates.indexOf("CLOSING")
 });
-Object.defineProperty(WebSocket$1, "CLOSED", {
+Object.defineProperty(WebSocket, "CLOSED", {
   enumerable: true,
   value: readyStates.indexOf("CLOSED")
 });
-Object.defineProperty(WebSocket$1.prototype, "CLOSED", {
+Object.defineProperty(WebSocket.prototype, "CLOSED", {
   enumerable: true,
   value: readyStates.indexOf("CLOSED")
 });
@@ -2866,10 +2866,10 @@ Object.defineProperty(WebSocket$1.prototype, "CLOSED", {
   "readyState",
   "url"
 ].forEach((property) => {
-  Object.defineProperty(WebSocket$1.prototype, property, { enumerable: true });
+  Object.defineProperty(WebSocket.prototype, property, { enumerable: true });
 });
 ["open", "error", "close", "message"].forEach((method) => {
-  Object.defineProperty(WebSocket$1.prototype, `on${method}`, {
+  Object.defineProperty(WebSocket.prototype, `on${method}`, {
     enumerable: true,
     get() {
       for (const listener of this.listeners(method)) {
@@ -2891,9 +2891,9 @@ Object.defineProperty(WebSocket$1.prototype, "CLOSED", {
     }
   });
 });
-WebSocket$1.prototype.addEventListener = addEventListener;
-WebSocket$1.prototype.removeEventListener = removeEventListener;
-var websocket = WebSocket$1;
+WebSocket.prototype.addEventListener = addEventListener;
+WebSocket.prototype.removeEventListener = removeEventListener;
+var websocket = WebSocket;
 function initAsClient(websocket2, address, protocols, options) {
   const opts = {
     allowSynchronousEvents: true,
@@ -3081,7 +3081,7 @@ function initAsClient(websocket2, address, protocols, options) {
   });
   req.on("upgrade", (res, socket, head) => {
     websocket2.emit("upgrade", res);
-    if (websocket2.readyState !== WebSocket$1.CONNECTING) return;
+    if (websocket2.readyState !== WebSocket.CONNECTING) return;
     req = websocket2._req = null;
     const upgrade = res.headers.upgrade;
     if (upgrade === void 0 || upgrade.toLowerCase() !== "websocket") {
@@ -3153,7 +3153,7 @@ function initAsClient(websocket2, address, protocols, options) {
   }
 }
 function emitErrorAndClose(websocket2, err) {
-  websocket2._readyState = WebSocket$1.CLOSING;
+  websocket2._readyState = WebSocket.CLOSING;
   websocket2._errorEmitted = true;
   websocket2.emit("error", err);
   websocket2.emitClose();
@@ -3170,7 +3170,7 @@ function tlsConnect(options) {
   return tls.connect(options);
 }
 function abortHandshake(websocket2, stream, message) {
-  websocket2._readyState = WebSocket$1.CLOSING;
+  websocket2._readyState = WebSocket.CLOSING;
   const err = new Error(message);
   Error.captureStackTrace(err, abortHandshake);
   if (stream.setHeader) {
@@ -3245,9 +3245,9 @@ function resume$1(stream) {
 }
 function senderOnError(err) {
   const websocket2 = this[kWebSocket$1];
-  if (websocket2.readyState === WebSocket$1.CLOSED) return;
-  if (websocket2.readyState === WebSocket$1.OPEN) {
-    websocket2._readyState = WebSocket$1.CLOSING;
+  if (websocket2.readyState === WebSocket.CLOSED) return;
+  if (websocket2.readyState === WebSocket.OPEN) {
+    websocket2._readyState = WebSocket.CLOSING;
     setCloseTimer(websocket2);
   }
   this._socket.end();
@@ -3267,7 +3267,7 @@ function socketOnClose() {
   this.removeListener("close", socketOnClose);
   this.removeListener("data", socketOnData);
   this.removeListener("end", socketOnEnd);
-  websocket2._readyState = WebSocket$1.CLOSING;
+  websocket2._readyState = WebSocket.CLOSING;
   if (!this._readableState.endEmitted && !websocket2._closeFrameReceived && !websocket2._receiver._writableState.errorEmitted && this._readableState.length !== 0) {
     const chunk = this.read(this._readableState.length);
     websocket2._receiver.write(chunk);
@@ -3289,7 +3289,7 @@ function socketOnData(chunk) {
 }
 function socketOnEnd() {
   const websocket2 = this[kWebSocket$1];
-  websocket2._readyState = WebSocket$1.CLOSING;
+  websocket2._readyState = WebSocket.CLOSING;
   websocket2._receiver.end();
   this.end();
 }
@@ -3298,11 +3298,11 @@ function socketOnError() {
   this.removeListener("error", socketOnError);
   this.on("error", NOOP);
   if (websocket2) {
-    websocket2._readyState = WebSocket$1.CLOSING;
+    websocket2._readyState = WebSocket.CLOSING;
     this.destroy();
   }
 }
-const WebSocket2 = /* @__PURE__ */ getDefaultExportFromCjs(websocket);
+const WebSocket$1 = /* @__PURE__ */ getDefaultExportFromCjs(websocket);
 const { Duplex: Duplex$1 } = require$$0$2;
 const { tokenChars } = validationExports;
 const { Duplex } = require$$0$2;
@@ -4531,7 +4531,7 @@ class EdgeTTS {
   async _connectWebSocket() {
     const url = `wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=${TRUSTED_CLIENT_TOKEN}&Sec-MS-GEC=${generateSecMsGecToken()}&Sec-MS-GEC-Version=1-${CHROMIUM_FULL_VERSION}`;
     console.log(`[TTS DEBUG] Connecting to WebSocket: ${url}`);
-    const wsConnect = new WebSocket2(url, {
+    const wsConnect = new WebSocket$1(url, {
       host: "speech.platform.bing.com",
       origin: "chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold",
       headers: {
@@ -4759,6 +4759,37 @@ electron.app.whenReady().then(() => {
         { id: 2, start: 2.5, end: 4, text: "This is AutoDub Studio." }
       ]
     };
+  });
+  electron.ipcMain.handle("video:trim", async (_event, { sourceVideoPath, start, end, outputDir, autoSave }) => {
+    try {
+      const now = /* @__PURE__ */ new Date();
+      const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}_${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}`;
+      const defaultFilename = `trim_${timestamp}.mp4`;
+      let savePath = "";
+      if (autoSave && outputDir) {
+        savePath = path.join(outputDir, defaultFilename);
+      } else {
+        const { canceled, filePath } = await electron.dialog.showSaveDialog(win, {
+          title: "保存剪辑后的视频",
+          defaultPath: outputDir ? path.join(outputDir, defaultFilename) : defaultFilename,
+          filters: [{ name: "MP4 视频", extensions: ["mp4"] }]
+        });
+        if (canceled || !filePath) return { status: "canceled" };
+        savePath = filePath;
+      }
+      const duration = Math.max(0, (end ?? 0) - (start ?? 0));
+      if (!sourceVideoPath || duration <= 0) {
+        return { status: "error", message: "无效的剪辑时间范围" };
+      }
+      await new Promise((resolve, reject) => {
+        ffmpeg(sourceVideoPath).setStartTime(start).setDuration(duration).outputOptions(["-c:v libx264", "-c:a aac", "-preset veryfast", "-crf 23"]).save(savePath).on("end", () => resolve()).on("error", (err) => reject(err));
+      });
+      electron.shell.showItemInFolder(savePath);
+      return { status: "success", outputPath: savePath };
+    } catch (e) {
+      console.error(e);
+      return { status: "error", message: (e == null ? void 0 : e.message) || "剪辑失败" };
+    }
   });
   electron.ipcMain.handle("video:export", async (_event, { sourceVideoPath, subtitleData, withDubbing, ttsOptions, subtitleStyle: styleOptions, outputDir, autoSave, bgVolume, bgmPath }) => {
     const options = {
@@ -5032,6 +5063,63 @@ ${text}
   });
   electron.ipcMain.handle("shell:showItemInFolder", async (_event, path2) => {
     electron.shell.showItemInFolder(path2);
+  });
+  electron.ipcMain.handle("video:concat", async (_event, { videoPaths, outputDir, autoSave }) => {
+    if (!Array.isArray(videoPaths) || videoPaths.length < 2) {
+      return { status: "error", message: "至少需要两个视频进行拼接" };
+    }
+    let tempDir = "";
+    try {
+      const now = /* @__PURE__ */ new Date();
+      const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}_${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}`;
+      const defaultFilename = `concat_${timestamp}.mp4`;
+      let savePath = "";
+      if (autoSave && outputDir) {
+        savePath = path.join(outputDir, defaultFilename);
+      } else {
+        const { canceled, filePath } = await electron.dialog.showSaveDialog(win, {
+          title: "保存拼接后的视频",
+          defaultPath: outputDir ? path.join(outputDir, defaultFilename) : defaultFilename,
+          filters: [{ name: "MP4 视频", extensions: ["mp4"] }]
+        });
+        if (canceled || !filePath) return { status: "canceled" };
+        savePath = filePath;
+      }
+      tempDir = await fs.promises.mkdtemp(path.join(electron.app.getPath("temp"), "autodub-concat-"));
+      const intermediateFiles = [];
+      for (let i = 0; i < videoPaths.length; i++) {
+        const inputPath = videoPaths[i];
+        if (!fs.existsSync(inputPath)) {
+          return { status: "error", message: `文件不存在：${inputPath}` };
+        }
+        const outPath = path.join(tempDir, `part_${i}.mp4`);
+        await new Promise((resolve, reject) => {
+          ffmpeg(inputPath).outputOptions(["-c:v libx264", "-c:a aac", "-preset veryfast", "-crf 23"]).save(outPath).on("end", () => resolve()).on("error", (err) => reject(err));
+        });
+        intermediateFiles.push(outPath);
+      }
+      const listFile = path.join(tempDir, "concat_list.txt");
+      const listContent = intermediateFiles.map((f) => {
+        const normalized = f.replace(/\\/g, "/");
+        return `file '${normalized}'`;
+      }).join("\n");
+      await fs.promises.writeFile(listFile, listContent, "utf-8");
+      await new Promise((resolve, reject) => {
+        ffmpeg().input(listFile).inputOptions(["-f", "concat", "-safe", "0"]).outputOptions(["-c", "copy"]).save(savePath).on("end", () => resolve()).on("error", (err) => reject(err));
+      });
+      electron.shell.showItemInFolder(savePath);
+      return { status: "success", outputPath: savePath };
+    } catch (e) {
+      console.error(e);
+      return { status: "error", message: (e == null ? void 0 : e.message) || "拼接失败" };
+    } finally {
+      if (tempDir) {
+        try {
+          await fs.promises.rm(tempDir, { recursive: true, force: true });
+        } catch {
+        }
+      }
+    }
   });
 });
 electron.app.on("window-all-closed", () => {

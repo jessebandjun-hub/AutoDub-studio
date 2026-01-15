@@ -9,6 +9,8 @@ const electronHandler = {
   generateAudio: (text, options = {}, preview = false, outputDir = "", autoSave = false) => electron.ipcRenderer.invoke("tts:generate", { text, options, preview, outputDir, autoSave }),
   checkFFmpeg: () => electron.ipcRenderer.invoke("ffmpeg:status"),
   openPath: (path) => electron.ipcRenderer.invoke("shell:openPath", path),
-  showItemInFolder: (path) => electron.ipcRenderer.invoke("shell:showItemInFolder", path)
+  showItemInFolder: (path) => electron.ipcRenderer.invoke("shell:showItemInFolder", path),
+  trimVideo: (sourceVideoPath, options) => electron.ipcRenderer.invoke("video:trim", { sourceVideoPath, ...options }),
+  concatVideos: (videoPaths, options) => electron.ipcRenderer.invoke("video:concat", { videoPaths, ...options })
 };
 electron.contextBridge.exposeInMainWorld("electronAPI", electronHandler);
