@@ -423,117 +423,121 @@ function App() {
 
   return (
     <div className="container">
-      {!videoPath ? (
-        <div className="card">
-          <button onClick={handleSelectFile} disabled={isProcessing || isExporting}>选择视频文件</button>
-        </div>
-      ) : (
-        <div className="main-layout">
-          <VideoPanel
-            videoPath={videoPath}
-            videoUrl={videoUrl}
-            videoRef={videoRef}
-            safeDuration={safeDuration}
-            clippedStart={clippedStart}
-            clippedEnd={clippedEnd}
-            rangeStartRatio={rangeStartRatio}
-            rangeEndRatio={rangeEndRatio}
-            trimStart={trimStart}
-            trimEnd={trimEnd}
-            isTrimming={isTrimming}
-            isExporting={isExporting}
-            isProcessing={isProcessing}
-            onTrimStartChange={setTrimStart}
-            onTrimEndChange={setTrimEnd}
-            onSetDraggingHandle={setDraggingHandle}
-            onTrimVideo={handleTrimVideo}
-            onSelectFile={handleSelectFile}
-            trimBarRef={trimBarRef}
-          />
-          <div className="right-panel">
-            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-              <button
-                onClick={() => setActiveTab('subtitle')}
-                style={{
-                  flex: 1,
-                  padding: '8px 12px',
-                  borderRadius: 6,
-                  border: activeTab === 'subtitle' ? '1px solid #646cff' : '1px solid #444',
-                  background: activeTab === 'subtitle' ? '#2a2a4a' : '#1f1f1f',
-                  color: activeTab === 'subtitle' ? '#fff' : '#aaa',
-                  cursor: 'pointer',
-                }}
-              >
-                字幕配音
-              </button>
-              <button
-                onClick={() => setActiveTab('concat')}
-                style={{
-                  flex: 1,
-                  padding: '8px 12px',
-                  borderRadius: 6,
-                  border: activeTab === 'concat' ? '1px solid #646cff' : '1px solid #444',
-                  background: activeTab === 'concat' ? '#2a2a4a' : '#1f1f1f',
-                  color: activeTab === 'concat' ? '#fff' : '#aaa',
-                  cursor: 'pointer',
-                }}
-              >
-                视频拼接
-              </button>
+      <div className="top-tabs">
+        <button
+          onClick={() => setActiveTab('subtitle')}
+          className="top-tab-button"
+          style={{
+            border: activeTab === 'subtitle' ? '1px solid #646cff' : '1px solid #444',
+            background: activeTab === 'subtitle' ? '#2a2a4a' : '#1f1f1f',
+            color: activeTab === 'subtitle' ? '#fff' : '#aaa',
+          }}
+        >
+          字幕配音
+        </button>
+        <button
+          onClick={() => setActiveTab('concat')}
+          className="top-tab-button"
+          style={{
+            border: activeTab === 'concat' ? '1px solid #646cff' : '1px solid #444',
+            background: activeTab === 'concat' ? '#2a2a4a' : '#1f1f1f',
+            color: activeTab === 'concat' ? '#fff' : '#aaa',
+          }}
+        >
+          视频拼接
+        </button>
+      </div>
+
+      {activeTab === 'subtitle' && (
+        <>
+          {!videoPath ? (
+            <div className="card">
+              <button onClick={handleSelectFile} disabled={isProcessing || isExporting}>选择视频文件</button>
             </div>
-
-            {activeTab === 'subtitle' && (
-              <SubtitleTab
-                segments={segments}
-                setSegments={setSegments}
+          ) : (
+            <div className="main-layout">
+              <VideoPanel
+                videoPath={videoPath}
+                videoUrl={videoUrl}
                 videoRef={videoRef}
-                ttsConfig={ttsConfig}
-                setTtsConfig={setTtsConfig}
-                voiceOptions={voiceOptions}
-                rateOptions={rateOptions}
-                pitchOptions={pitchOptions}
-                currentStyles={currentStyles}
-                fontSize={fontSize}
-                setFontSize={setFontSize}
-                bgVolume={bgVolume}
-                setBgVolume={setBgVolume}
-                bgmPath={bgmPath}
-                onSelectBgm={handleSelectBgm}
-                onClearBgm={() => setBgmPath('')}
-                outputDir={outputDir}
-                autoSave={autoSave}
-                setAutoSave={setAutoSave}
-                onSelectOutputDir={handleSelectOutputDir}
+                safeDuration={safeDuration}
+                clippedStart={clippedStart}
+                clippedEnd={clippedEnd}
+                rangeStartRatio={rangeStartRatio}
+                rangeEndRatio={rangeEndRatio}
+                trimStart={trimStart}
+                trimEnd={trimEnd}
+                isTrimming={isTrimming}
                 isExporting={isExporting}
-                onExportWithDubbing={() => handleExport(true)}
-                onExportSrt={handleExportSrt}
-                onGenerateTts={handleTtsGenerate}
-                previewFile={previewFile}
-                onClosePreview={() => setPreviewFile(null)}
-                onEditingChange={setEditing}
+                isProcessing={isProcessing}
+                onTrimStartChange={setTrimStart}
+                onTrimEndChange={setTrimEnd}
+                onSetDraggingHandle={setDraggingHandle}
+                onTrimVideo={handleTrimVideo}
+                onSelectFile={handleSelectFile}
+                trimBarRef={trimBarRef}
               />
-            )}
+              <div className="right-panel">
+                <SubtitleTab
+                  segments={segments}
+                  setSegments={setSegments}
+                  videoRef={videoRef}
+                  ttsConfig={ttsConfig}
+                  setTtsConfig={setTtsConfig}
+                  voiceOptions={voiceOptions}
+                  rateOptions={rateOptions}
+                  pitchOptions={pitchOptions}
+                  currentStyles={currentStyles}
+                  fontSize={fontSize}
+                  setFontSize={setFontSize}
+                  bgVolume={bgVolume}
+                  setBgVolume={setBgVolume}
+                  bgmPath={bgmPath}
+                  onSelectBgm={handleSelectBgm}
+                  onClearBgm={() => setBgmPath('')}
+                  outputDir={outputDir}
+                  autoSave={autoSave}
+                  setAutoSave={setAutoSave}
+                  onSelectOutputDir={handleSelectOutputDir}
+                  isExporting={isExporting}
+                  onExportWithDubbing={() => handleExport(true)}
+                  onExportSrt={handleExportSrt}
+                  onGenerateTts={handleTtsGenerate}
+                  previewFile={previewFile}
+                  onClosePreview={() => setPreviewFile(null)}
+                  onEditingChange={setEditing}
+                />
+              </div>
+            </div>
+          )}
+        </>
+      )}
 
-            {activeTab === 'concat' && (
-              <ConcatTab
-                concatList={concatList}
-                isConcating={isConcating}
-                isExporting={isExporting}
-                onAddVideo={handleAddConcatVideo}
-                onConcat={handleConcatVideos}
-                draggingConcatId={draggingConcatId}
-                onSetDraggingConcatId={setDraggingConcatId}
-                onReorder={handleConcatReorder}
-                onRemove={id => setConcatList(prev => prev.filter(c => c.id !== id))}
-                onChangeTransition={(id, value) =>
-                  setConcatList(prev =>
-                    prev.map(c =>
-                      c.id === id ? { ...c, transitionAfter: value } : c
-                    )
+      {activeTab === 'concat' && (
+        <div className="main-layout">
+          <div className="right-panel">
+            <ConcatTab
+              concatList={concatList}
+              isConcating={isConcating}
+              isExporting={isExporting}
+              outputDir={outputDir}
+              autoSave={autoSave}
+              onAddVideo={handleAddConcatVideo}
+              onConcat={handleConcatVideos}
+              draggingConcatId={draggingConcatId}
+              onSetDraggingConcatId={setDraggingConcatId}
+              onReorder={handleConcatReorder}
+              onRemove={id => setConcatList(prev => prev.filter(c => c.id !== id))}
+              onChangeTransition={(id, value) =>
+                setConcatList(prev =>
+                  prev.map(c =>
+                    c.id === id ? { ...c, transitionAfter: value } : c
                   )
-                }
-              />
-            )}
+                )
+              }
+              onSelectOutputDir={handleSelectOutputDir}
+              setAutoSave={setAutoSave}
+            />
           </div>
         </div>
       )}

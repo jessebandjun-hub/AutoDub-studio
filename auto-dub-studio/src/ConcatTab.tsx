@@ -4,6 +4,8 @@ type ConcatTabProps = {
   concatList: ConcatItem[]
   isConcating: boolean
   isExporting: boolean
+  outputDir: string
+  autoSave: boolean
   onAddVideo: () => void
   onConcat: () => void
   draggingConcatId: number | null
@@ -11,12 +13,16 @@ type ConcatTabProps = {
   onReorder: (targetId: number) => void
   onRemove: (id: number) => void
   onChangeTransition: (id: number, transition: ConcatItem['transitionAfter']) => void
+  onSelectOutputDir: () => void
+  setAutoSave: (v: boolean) => void
 }
 
 function ConcatTab({
   concatList,
   isConcating,
   isExporting,
+  outputDir,
+  autoSave,
   onAddVideo,
   onConcat,
   draggingConcatId,
@@ -24,27 +30,52 @@ function ConcatTab({
   onReorder,
   onRemove,
   onChangeTransition,
+  onSelectOutputDir,
+  setAutoSave,
 }: ConcatTabProps) {
   return (
     <div className="card">
       <h3>多视频拼接：</h3>
-      <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 12, flexWrap: 'wrap' }}>
-        <button onClick={onAddVideo} disabled={isConcating || isExporting}>
-          添加视频到拼接列表
-        </button>
-        <button
-          className="export-btn"
-          onClick={onConcat}
-          disabled={isConcating || concatList.length < 2 || isExporting}
-          style={{ backgroundColor: '#4caf50' }}
-        >
-          {isConcating ? '拼接中...' : '开始拼接导出'}
-        </button>
-        {concatList.length > 0 && (
-          <span style={{ fontSize: 12, color: '#aaa' }}>
-            当前片段：{concatList.length} 个，将按顺序拼接
-          </span>
-        )}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button onClick={onAddVideo} disabled={isConcating || isExporting}>
+            添加视频到拼接列表
+          </button>
+          <button
+            className="export-btn"
+            onClick={onConcat}
+            disabled={isConcating || concatList.length < 2 || isExporting}
+            style={{ backgroundColor: '#4caf50' }}
+          >
+            {isConcating ? '拼接中...' : '开始拼接导出'}
+          </button>
+          {concatList.length > 0 && (
+            <span style={{ fontSize: 12, color: '#aaa' }}>
+              当前片段：{concatList.length} 个，将按顺序拼接
+            </span>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <input
+              type="text"
+              value={outputDir}
+              placeholder="默认输出目录（留空则每次询问）"
+              readOnly
+              style={{ flex: 1, padding: '5px' }}
+            />
+            <button onClick={onSelectOutputDir}>选择目录</button>
+          </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 5, cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={autoSave}
+              onChange={e => setAutoSave(e.target.checked)}
+            />
+            自动保存到该目录（不再询问）
+          </label>
+        </div>
       </div>
 
       {concatList.length === 0 && (

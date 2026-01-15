@@ -6,6 +6,19 @@
   text-align: center;
 }
 
+.top-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.top-tab-button {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
 .main-layout {
   display: flex;
   gap: 20px;
