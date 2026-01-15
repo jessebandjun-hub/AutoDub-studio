@@ -11,7 +11,6 @@ export interface IElectronAPI {
   checkFFmpeg: () => Promise<{ exists: boolean; path: string }>,
   openPath: (path: string) => Promise<string>,
   showItemInFolder: (path: string) => Promise<void>,
-  saveFile: (buffer: ArrayBuffer, fileName: string, outputDir?: string, autoSave?: boolean) => Promise<any>,
 }
 
 // 实现 API
@@ -25,7 +24,6 @@ const electronHandler: IElectronAPI = {
   checkFFmpeg: () => ipcRenderer.invoke('ffmpeg:status'),
   openPath: (path) => ipcRenderer.invoke('shell:openPath', path),
   showItemInFolder: (path) => ipcRenderer.invoke('shell:showItemInFolder', path),
-  saveFile: (buffer, fileName, outputDir = '', autoSave = false) => ipcRenderer.invoke('file:save', { buffer, fileName, outputDir, autoSave }),
 }
 
 // 将 API 暴露到全局 window 对象上，命名为 window.electronAPI

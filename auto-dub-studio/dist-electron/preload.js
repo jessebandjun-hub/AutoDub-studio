@@ -9,7 +9,6 @@ const electronHandler = {
   generateAudio: (text, options = {}, preview = false, outputDir = "", autoSave = false) => electron.ipcRenderer.invoke("tts:generate", { text, options, preview, outputDir, autoSave }),
   checkFFmpeg: () => electron.ipcRenderer.invoke("ffmpeg:status"),
   openPath: (path) => electron.ipcRenderer.invoke("shell:openPath", path),
-  showItemInFolder: (path) => electron.ipcRenderer.invoke("shell:showItemInFolder", path),
-  saveFile: (buffer, fileName, outputDir = "", autoSave = false) => electron.ipcRenderer.invoke("file:save", { buffer, fileName, outputDir, autoSave })
+  showItemInFolder: (path) => electron.ipcRenderer.invoke("shell:showItemInFolder", path)
 };
 electron.contextBridge.exposeInMainWorld("electronAPI", electronHandler);
